@@ -207,6 +207,8 @@ export default function VyniaApp() {
   const [filtro, setFiltro] = useState("pendientes"); // pendientes | hoy | todos | recogidos
   const [filtroFecha, setFiltroFecha] = useState(fmt.todayISO()); // null = all dates
   const [busqueda, setBusqueda] = useState("");
+  const [allPedidos, setAllPedidos] = useState(null); // loaded on search
+  const busquedaTimer = useRef(null);
 
   // Nuevo pedido form
   const [cliente, setCliente] = useState("");
@@ -241,6 +243,28 @@ export default function VyniaApp() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 3500);
   }, []);
+
+  // ─── SEARCH (independent of filters) ───
+  const onBusquedaChange = (val) => {
+    setBusqueda(val);
+    if (busquedaTimer.current) clearTimeout(busquedaTimer.current);
+    if (!val.trim()) { setAllPedidos(null); return; }
+    busquedaTimer.current = setTimeout(async () => {
+      if (apiMode === "demo") return; // demo uses local data
+      try {
+        const data = await notion.loadPedidosByDate(null); // all dates
+        const mapped = (Array.isArray(data) ? data : []).map(p => ({
+          id: p.id, nombre: p.titulo || "", fecha: p.fecha || "",
+          recogido: !!p.recogido, noAcude: !!p.noAcude, pagado: !!p.pagado,
+          incidencia: !!p.incidencia, notas: p.notas || "", importe: p.importe || 0,
+          productos: p.productos || "", tel: p.telefono || "", numPedido: p.numPedido || 0,
+          hora: p.fecha?.includes("T") ? p.fecha.split("T")[1]?.substring(0, 5) : "",
+          cliente: p.cliente || (p.titulo || "").replace(/^Pedido\s+/i, ""),
+        }));
+        setAllPedidos(mapped);
+      } catch { /* ignore */ }
+    }, 400);
+  };
 
   // ─── LOAD PEDIDOS ───
   const loadPedidos = useCallback(async (fechaParam) => {
@@ -553,19 +577,21 @@ export default function VyniaApp() {
   const totalItems = lineas.reduce((s, l) => s + l.cantidad, 0);
 
   // ─── FILTERED PEDIDOS (date filtering done at API level) ───
-  const pedidosFiltrados = pedidos.filter(p => {
-    if (filtro === "pendientes") return !p.recogido && !p.noAcude;
-    if (filtro === "recogidos") return p.recogido;
-    return true;
-  }).filter(p => {
-    if (!busqueda.trim()) return true;
-    const q = busqueda.toLowerCase();
-    return (p.cliente || "").toLowerCase().includes(q)
-      || (p.nombre || "").toLowerCase().includes(q)
-      || (p.tel || "").includes(q)
-      || (p.notas || "").toLowerCase().includes(q)
-      || String(p.numPedido || "").includes(q);
-  });
+  const isSearching = busqueda.trim().length > 0;
+  const pedidosFiltrados = isSearching
+    ? (allPedidos || pedidos).filter(p => {
+        const q = busqueda.toLowerCase();
+        return (p.cliente || "").toLowerCase().includes(q)
+          || (p.nombre || "").toLowerCase().includes(q)
+          || (p.tel || "").includes(q)
+          || (p.notas || "").toLowerCase().includes(q)
+          || String(p.numPedido || "").includes(q);
+      })
+    : pedidos.filter(p => {
+        if (filtro === "pendientes") return !p.recogido && !p.noAcude;
+        if (filtro === "recogidos") return p.recogido;
+        return true;
+      });
 
   // Group by date
   const groups = {};
@@ -812,7 +838,7 @@ export default function VyniaApp() {
                 <I.Search s={16} />
               </div>
               <input placeholder="Buscar por cliente, teléfono, notas..."
-                value={busqueda} onChange={e => setBusqueda(e.target.value)}
+                value={busqueda} onChange={e => onBusquedaChange(e.target.value)}
                 style={{
                   width: "100%", padding: "10px 10px 10px 36px", borderRadius: 10,
                   border: "1.5px solid #A2C2D0", fontSize: 13,
