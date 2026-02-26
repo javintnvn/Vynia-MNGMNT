@@ -74,7 +74,9 @@ Integracion: **Frontend Vynia** (debe tener acceso a cada BD individualmente).
 
 ### GET /api/pedidos
 - Query params: `filter=todos|pendientes|recogidos`
-- Devuelve array de pedidos con: id, titulo, fecha, recogido, noAcude, pagado, incidencia, notas, numPedido
+- Devuelve array de pedidos con: id, titulo, fecha, recogido, noAcude, pagado, incidencia, notas, numPedido, **cliente**, **telefono**, clienteId
+- Resuelve nombres de clientes via `pages.retrieve` en la relacion `Clientes` (igual que produccion.js)
+- Resuelve telefono via rollup `"Telefono"` en Pedidos
 - Paginacion automatica via cursor
 
 ### POST /api/pedidos
@@ -153,7 +155,7 @@ Exporta objeto `notion` con metodos:
 - **Palette**: Vynia brand — primario `#4F6867`, secundario `#1B1C39`, accent `#E1F2FC`, bg `#EFE9E4`, muted `#A2C2D0`
 - **Fuentes**: Roboto Condensed (titulos/numeros), Inter (texto)
 - **Responsive**: Mobile-first, max-width 960px centrado
-- **Tooltips**: Todos los botones tienen `title` para hover descriptivo
+- **Tooltips**: Todos los botones tienen `title` para hover (desktop) + sistema de tooltip tactil por long-press ~0.4s (movil) con popup animado que desaparece tras 1.5s
 - **Print**: CSS @media print para imprimir lista de pedidos/produccion
 - **Bottom nav**: 3 tabs fijas (Pedidos, Nuevo, Produccion) con safe-area-inset-bottom
 
@@ -185,6 +187,6 @@ npx vite            # solo frontend (modo DEMO funciona sin API)
 - El campo `"Nombre"` (title) en Registros contiene solo `" "` — usar `"AUX Producto Texto"` (formula) para el nombre real del producto
 - `"N Pedido"` es tipo `unique_id`, acceder via `.unique_id.number`
 - El telefono del cliente viene de un rollup en Pedidos: `p["Telefono"]?.rollup?.array[0]?.phone_number`
-- Para obtener nombre de cliente desde produccion: resolver relacion `"Clientes"` → `notion.pages.retrieve` → buscar propiedad tipo `title`
-- Toda la UI esta en un solo componente `App.jsx` (~1400 lineas) — no hay componentes separados
+- Para obtener nombre de cliente: resolver relacion `"Clientes"` → `notion.pages.retrieve` → buscar propiedad tipo `title`. Esto se hace tanto en `pedidos.js` como en `produccion.js`
+- Toda la UI esta en un solo componente `App.jsx` (~1470 lineas) — no hay componentes separados
 - El catalogo de productos esta hardcodeado en `CATALOGO[]` en App.jsx (no se carga de la API)
