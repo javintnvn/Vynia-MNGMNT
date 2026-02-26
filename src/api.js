@@ -55,6 +55,10 @@ export const notion = {
     });
   },
 
+  async searchClientes(q) {
+    return apiCall(`/clientes?q=${encodeURIComponent(q)}`);
+  },
+
   async findOrCreateCliente(nombre, telefono) {
     return apiCall("/clientes", {
       method: "POST",

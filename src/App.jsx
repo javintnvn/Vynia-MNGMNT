@@ -190,6 +190,8 @@ export default function VyniaApp() {
   
   // Nuevo pedido form
   const [cliente, setCliente] = useState("");
+  const [clienteSuggestions, setClienteSuggestions] = useState([]);
+  const [selectedClienteId, setSelectedClienteId] = useState(null);
   const [telefono, setTelefono] = useState("");
   const [fecha, setFecha] = useState(fmt.todayISO());
   const [hora, setHora] = useState("");
@@ -209,6 +211,7 @@ export default function VyniaApp() {
   // Refs
   const toastTimer = useRef(null);
   const searchRef = useRef(null);
+  const clienteSearchTimer = useRef(null);
 
   // ─── TOAST ───
   const notify = useCallback((type, msg) => {
@@ -392,13 +395,17 @@ export default function VyniaApp() {
 
     setLoading(true);
     try {
-      // 1. Find or create client
-      const clienteRes = await notion.findOrCreateCliente(cliente.trim(), telefono);
-      if (!clienteRes?.id) throw new Error("No se pudo crear/encontrar el cliente");
+      // 1. Find or create client (skip if already selected from autocomplete)
+      let clientePageId = selectedClienteId;
+      if (!clientePageId) {
+        const clienteRes = await notion.findOrCreateCliente(cliente.trim(), telefono);
+        if (!clienteRes?.id) throw new Error("No se pudo crear/encontrar el cliente");
+        clientePageId = clienteRes.id;
+      }
 
       // 2. Create order + line items (handled by api.js)
       await notion.crearPedido(
-        cliente.trim(), clienteRes.id, fecha, hora, pagado, notas, lineas
+        cliente.trim(), clientePageId, fecha, hora, pagado, notas, lineas
       );
 
       const total = lineas.reduce((s, l) => s + l.cantidad * l.precio, 0);
@@ -417,6 +424,30 @@ export default function VyniaApp() {
     setCliente(""); setTelefono(""); setFecha(fmt.todayISO());
     setHora(""); setNotas(""); setPagado(false); setLineas([]);
     setSearchProd(""); setShowCatFull(false);
+    setClienteSuggestions([]); setSelectedClienteId(null);
+  };
+
+  // ─── CLIENT AUTOCOMPLETE ───
+  const onClienteChange = (val) => {
+    setCliente(val);
+    setSelectedClienteId(null);
+    if (clienteSearchTimer.current) clearTimeout(clienteSearchTimer.current);
+    if (apiMode === "demo" || val.trim().length < 2) {
+      setClienteSuggestions([]);
+      return;
+    }
+    clienteSearchTimer.current = setTimeout(async () => {
+      try {
+        const results = await notion.searchClientes(val.trim());
+        setClienteSuggestions(Array.isArray(results) ? results : []);
+      } catch { setClienteSuggestions([]); }
+    }, 300);
+  };
+  const selectCliente = (c) => {
+    setCliente(c.nombre);
+    setSelectedClienteId(c.id);
+    if (c.telefono) setTelefono(c.telefono);
+    setClienteSuggestions([]);
   };
 
   // ─── PRODUCT MANAGEMENT ───
@@ -872,9 +903,43 @@ export default function VyniaApp() {
               <label style={labelStyle}>
                 <I.User s={13} /> Cliente
               </label>
-              <input placeholder="Nombre del cliente" value={cliente}
-                onChange={e => setCliente(e.target.value)}
-                style={inputStyle} />
+              <div style={{ position: "relative" }}>
+                <input placeholder="Nombre del cliente" value={cliente}
+                  onChange={e => onClienteChange(e.target.value)}
+                  onBlur={() => setTimeout(() => setClienteSuggestions([]), 200)}
+                  autoComplete="off"
+                  style={inputStyle} />
+                {clienteSuggestions.length > 0 && (
+                  <div style={{
+                    position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50,
+                    background: "#fff", borderRadius: "0 0 10px 10px",
+                    border: "1px solid #A2C2D0", borderTop: "none",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                    maxHeight: 180, overflowY: "auto",
+                  }}>
+                    {clienteSuggestions.map(c => (
+                      <button key={c.id} onClick={() => selectCliente(c)} style={{
+                        display: "block", width: "100%", padding: "10px 14px",
+                        border: "none", background: "transparent", cursor: "pointer",
+                        textAlign: "left", fontSize: 13,
+                        borderBottom: "1px solid #E1F2FC",
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = "#E1F2FC"}
+                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                        <span style={{ fontWeight: 600, color: "#1B1C39" }}>{c.nombre}</span>
+                        {c.telefono && (
+                          <span style={{ fontSize: 11, color: "#A2C2D0", marginLeft: 8 }}>{c.telefono}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {selectedClienteId && (
+                <p style={{ fontSize: 10, color: "#4F6867", margin: "4px 0 0", fontWeight: 600 }}>
+                  Cliente vinculado
+                </p>
+              )}
               <input placeholder="Teléfono (opcional)" value={telefono}
                 onChange={e => setTelefono(e.target.value)}
                 type="tel"
