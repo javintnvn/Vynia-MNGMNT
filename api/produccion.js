@@ -83,7 +83,10 @@ export default async function handler(req, res) {
         });
 
         for (const reg of regRes.results) {
-          const nombre = extractTitle(reg.properties["title"] || reg.properties["Nombre"] || Object.values(reg.properties).find(p => p.type === "title"));
+          // Product name comes from formula "AUX Producto Texto", not the title field
+          const auxProd = reg.properties["AUX Producto Texto"];
+          const nombre = (auxProd?.formula?.string || "").trim()
+            || extractTitle(reg.properties["Nombre"]);
           // "Unidades " has trailing space
           const unidades = reg.properties["Unidades "]?.number || 0;
 
