@@ -1467,7 +1467,7 @@ export default function VyniaApp() {
           { key: "nuevo", icon: <I.Plus s={22} />, label: "Nuevo", tip: "Crear nuevo pedido" },
           { key: "produccion", icon: <I.Store s={22} />, label: "Producción", tip: "Ver producción diaria" },
         ].map(t => (
-          <button title={t.tip} key={t.key} onClick={() => { setTab(t.key); if (t.key === "nuevo") resetForm(); if (t.key === "produccion") loadProduccion(); }}
+          <button title={t.tip} key={t.key} onClick={() => { setTab(t.key); if (t.key === "nuevo") resetForm(); if (t.key === "produccion" && produccionData.length === 0) loadProduccion(); }}
             style={{
               flex: 1, padding: "6px 0", border: "none",
               background: "transparent", cursor: "pointer",

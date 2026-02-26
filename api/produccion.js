@@ -94,12 +94,14 @@ export default async function handler(req, res) {
       if (ped.clienteId) ped.cliente = clientNames[ped.clienteId] || "";
     }
 
-    // 2. For each pedido, query registros
+    // 2. Query registros for ALL pedidos in parallel
     const productosAgg = {}; // nombre -> { totalUnidades, pedidos: [] }
     const pedidoProductos = {}; // pedidoId -> [{ nombre, unidades }]
+    const pedidoIds = Object.keys(pedidoMap);
 
-    for (const pedidoId of Object.keys(pedidoMap)) {
-      pedidoProductos[pedidoId] = [];
+    for (const pid of pedidoIds) pedidoProductos[pid] = [];
+
+    await Promise.all(pedidoIds.map(async (pedidoId) => {
       let cursor = undefined;
       do {
         const regRes = await notion.databases.query({
@@ -113,11 +115,9 @@ export default async function handler(req, res) {
         });
 
         for (const reg of regRes.results) {
-          // Product name comes from formula "AUX Producto Texto", not the title field
           const auxProd = reg.properties["AUX Producto Texto"];
           const nombre = (auxProd?.formula?.string || "").trim()
             || extractTitle(reg.properties["Nombre"]);
-          // "Unidades " has trailing space
           const unidades = reg.properties["Unidades "]?.number || 0;
 
           if (!nombre || unidades === 0) continue;
@@ -136,7 +136,7 @@ export default async function handler(req, res) {
 
         cursor = regRes.has_more ? regRes.next_cursor : undefined;
       } while (cursor);
-    }
+    }));
 
     // Attach full product list to each pedido entry in productosAgg
     for (const prod of Object.values(productosAgg)) {
