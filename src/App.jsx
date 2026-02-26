@@ -142,6 +142,17 @@ const fmt = {
   dayAfterISO: () => { const t = new Date(); t.setDate(t.getDate()+2); return t.toISOString().split("T")[0]; },
 };
 
+// ─── MAÑANA / TARDE DETECTION ───
+function esTarde(p) {
+  const notas = (p.notas || "").toLowerCase();
+  if (notas.includes("tarde")) return true;
+  const horaMatch = notas.match(/\b(\d{1,2})[:\s]?[h0-9]*/);
+  if (horaMatch && parseInt(horaMatch[1], 10) >= 17) return true;
+  const hora = p.hora || fmt.time(p.fecha);
+  if (hora && parseInt(hora.split(":")[0], 10) >= 17) return true;
+  return false;
+}
+
 // ─── RESPONSIVE BREAKPOINTS ───
 function useBreakpoint() {
   const get = () => {
@@ -310,7 +321,7 @@ export default function VyniaApp() {
       const allDemo = [
         { id: "demo-1", nombre: "Pedido María García", cliente: "María García", tel: "600123456", fecha: fmt.todayISO(), hora: "10:30", productos: "2x Cookie pistacho, 1x Brownie", importe: 8.60, recogido: false, pagado: true, notas: "", noAcude: false, incidencia: false },
         { id: "demo-2", nombre: "Pedido Juan López", cliente: "Juan López", tel: "612345678", fecha: fmt.todayISO(), hora: "12:00", productos: "1x Hogaza Miel, 3x Viñacaos", importe: 18.50, recogido: false, pagado: false, notas: "Sin nueces", noAcude: false, incidencia: false },
-        { id: "demo-3", nombre: "Pedido Ana Ruiz", cliente: "Ana Ruiz", tel: "654321000", fecha: fmt.tomorrowISO(), hora: "", productos: "1x Tarta de queso, 2x Barra de pan", importe: 32.00, recogido: false, pagado: true, notas: "", noAcude: false, incidencia: false },
+        { id: "demo-3", nombre: "Pedido Ana Ruiz", cliente: "Ana Ruiz", tel: "654321000", fecha: fmt.tomorrowISO(), hora: "", productos: "1x Tarta de queso, 2x Barra de pan", importe: 32.00, recogido: false, pagado: true, notas: "Recoger por la tarde", noAcude: false, incidencia: false },
         { id: "demo-4", nombre: "Pedido Carlos", cliente: "Carlos Martín", tel: "677888999", fecha: fmt.todayISO(), hora: "09:00", productos: "4x Magdalenas, 2x Bollitos", importe: 9.60, recogido: true, pagado: true, notas: "", noAcude: false, incidencia: false },
         { id: "demo-5", nombre: "Pedido Laura", cliente: "Laura Sánchez", tel: "611222333", fecha: fmt.dayAfterISO(), hora: "11:00", productos: "1x Bizcocho naranja, 1x Granola", importe: 8.80, recogido: false, pagado: false, notas: "Llamar antes", noAcude: false, incidencia: false },
       ];
@@ -1045,13 +1056,12 @@ export default function VyniaApp() {
                     )}
                   </div>
 
-                  {/* Order cards */}
-                  <div className="grid-cards" style={{
-                    display: "grid",
-                    gridTemplateColumns: isDesktop ? "repeat(3, 1fr)" : isTablet ? "repeat(2, 1fr)" : "1fr",
-                    gap: isDesktop ? 12 : 8,
-                  }}>
-                  {groups[dateKey].map(p => (
+                  {/* Order cards — split by Mañana/Tarde */}
+                  {(() => {
+                    const manana = groups[dateKey].filter(p => !esTarde(p));
+                    const tarde = groups[dateKey].filter(p => esTarde(p));
+                    const gridStyle = { display: "grid", gridTemplateColumns: isDesktop ? "repeat(3, 1fr)" : isTablet ? "repeat(2, 1fr)" : "1fr", gap: isDesktop ? 12 : 8 };
+                    const renderCards = (list) => list.map(p => (
                     <div key={p.id} className="order-card" style={{
                       background: "#fff",
                       borderRadius: 14,
@@ -1089,6 +1099,12 @@ export default function VyniaApp() {
                                 fontSize: 9, padding: "2px 6px", borderRadius: 4,
                                 background: "#FDE8E5", color: "#C62828", fontWeight: 700,
                               }}>!</span>
+                            )}
+                            {esTarde(p) && (
+                              <span style={{
+                                fontSize: 9, padding: "2px 6px", borderRadius: 4,
+                                background: "#FFF3E0", color: "#E65100", fontWeight: 700,
+                              }}>TARDE</span>
                             )}
                           </div>
                           
@@ -1178,8 +1194,34 @@ export default function VyniaApp() {
 
                       </div>
                     </div>
-                  ))}
-                  </div>{/* end grid-cards */}
+                    ));
+                    return (
+                      <>
+                        {manana.length > 0 && (
+                          <>
+                            {tarde.length > 0 && (
+                              <div style={{ fontSize: 11, fontWeight: 700, color: "#4F6867",
+                                textTransform: "uppercase", letterSpacing: "0.06em",
+                                padding: "4px 0", marginBottom: 4 }}>
+                                Mañana
+                              </div>
+                            )}
+                            <div style={gridStyle}>{renderCards(manana)}</div>
+                          </>
+                        )}
+                        {tarde.length > 0 && (
+                          <>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: "#E65100",
+                              textTransform: "uppercase", letterSpacing: "0.06em",
+                              padding: "4px 0", marginTop: manana.length > 0 ? 10 : 0, marginBottom: 4 }}>
+                              Tarde
+                            </div>
+                            <div style={gridStyle}>{renderCards(tarde)}</div>
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               ))
             )}
