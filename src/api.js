@@ -130,6 +130,10 @@ export const notion = {
     });
   },
 
+  async loadRegistros(pedidoId) {
+    return apiCall(`/registros?pedidoId=${pedidoId}`);
+  },
+
   async loadProduccion(fecha) {
     return apiCall(`/produccion?fecha=${fecha}`);
   },

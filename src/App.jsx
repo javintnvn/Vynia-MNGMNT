@@ -289,6 +289,22 @@ export default function VyniaApp() {
 
   useEffect(() => { loadPedidos(); loadProduccion(); }, [apiMode]);
 
+  // ─── LOAD PRODUCTS FOR SELECTED PEDIDO ───
+  useEffect(() => {
+    if (!selectedPedido || apiMode === "demo") return;
+    if (selectedPedido.productos && selectedPedido.productos.length > 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const prods = await notion.loadRegistros(selectedPedido.id);
+        if (!cancelled && Array.isArray(prods) && prods.length > 0) {
+          setSelectedPedido(prev => prev && prev.id === selectedPedido.id ? { ...prev, productos: prods } : prev);
+        }
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedPedido?.id]);
+
   // ─── LOAD PRODUCCION ───
   const loadProduccion = useCallback(async (fechaParam) => {
     const f = fechaParam || produccionFecha;
