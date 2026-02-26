@@ -317,6 +317,26 @@ export default function VyniaApp() {
 
       setPedidos(mapped);
       notify("ok", `${mapped.length} pedido${mapped.length !== 1 ? "s" : ""} cargado${mapped.length !== 1 ? "s" : ""}`);
+      // Enrich pedidos with importe in background
+      if (mapped.length > 0) {
+        const priceMap = {};
+        CATALOGO.forEach(c => { priceMap[c.nombre] = c.precio; });
+        (async () => {
+          const updates = {};
+          for (let i = 0; i < mapped.length; i += 5) {
+            await Promise.all(mapped.slice(i, i + 5).map(async (ped) => {
+              try {
+                const prods = await notion.loadRegistros(ped.id);
+                if (!Array.isArray(prods)) return;
+                const imp = prods.reduce((s, pr) => s + (pr.unidades || 0) * (priceMap[pr.nombre] || 0), 0);
+                const str = prods.map(pr => `${pr.unidades}x ${pr.nombre}`).join(", ");
+                updates[ped.id] = { importe: imp, productos: str };
+              } catch { /* ignore */ }
+            }));
+          }
+          setPedidos(ps => ps.map(p => updates[p.id] ? { ...p, ...updates[p.id] } : p));
+        })();
+      }
     } catch (err) {
       notify("err", "Error cargando: " + (err.message || "desconocido").substring(0, 100));
     } finally {
@@ -488,9 +508,12 @@ export default function VyniaApp() {
 
   const guardarModificacion = async (pedido, newLineas) => {
     if (newLineas.length === 0) { notify("err", "Añade al menos un producto"); return; }
+    const newImporte = newLineas.reduce((s, l) => s + l.cantidad * l.precio, 0);
+    const newProdsStr = newLineas.map(l => `${l.cantidad}x ${l.nombre}`).join(", ");
     if (apiMode === "demo") {
       const newProds = newLineas.map(l => ({ nombre: l.nombre, unidades: l.cantidad }));
       setSelectedPedido(prev => prev ? { ...prev, productos: newProds } : prev);
+      setPedidos(ps => ps.map(p => p.id === pedido.id ? { ...p, importe: newImporte, productos: newProdsStr } : p));
       setEditingProductos(false); setEditLineas([]); setEditSearchProd("");
       notify("ok", "Pedido modificado");
       return;
@@ -507,6 +530,7 @@ export default function VyniaApp() {
       // Reload fresh registros (with new IDs)
       const freshProds = await notion.loadRegistros(pedido.id);
       setSelectedPedido(prev => prev ? { ...prev, productos: Array.isArray(freshProds) ? freshProds : [] } : prev);
+      setPedidos(ps => ps.map(p => p.id === pedido.id ? { ...p, importe: newImporte, productos: newProdsStr } : p));
       setEditingProductos(false); setEditLineas([]); setEditSearchProd("");
       invalidateProduccion(pedido.fecha); invalidateSearchCache();
       notify("ok", "Pedido modificado");
