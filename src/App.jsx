@@ -249,7 +249,8 @@ export default function VyniaApp() {
   const onBusquedaChange = (val) => {
     setBusqueda(val);
     if (busquedaTimer.current) clearTimeout(busquedaTimer.current);
-    if (!val.trim()) { setAllPedidos(null); return; }
+    if (!val.trim()) return; // keep allPedidos cached for next search
+    if (allPedidos) return; // already cached, just filter locally
     busquedaTimer.current = setTimeout(async () => {
       if (apiMode === "demo") return; // demo uses local data
       try {
@@ -265,6 +266,13 @@ export default function VyniaApp() {
         setAllPedidos(mapped);
       } catch { /* ignore */ }
     }, 400);
+  };
+  // Invalidate caches when data changes
+  const invalidateSearchCache = () => setAllPedidos(null);
+  const invalidateProduccion = (pedidoFecha) => {
+    // Only invalidate if the pedido's date matches the currently loaded produccion date
+    const pedidoDate = (pedidoFecha || "").split("T")[0];
+    if (!pedidoDate || pedidoDate === produccionFecha) setProduccionData([]);
   };
 
   // ─── LOAD PEDIDOS ───
@@ -379,6 +387,7 @@ export default function VyniaApp() {
     try {
       await notion.toggleRecogido(pedido.id, pedido.recogido);
       setPedidos(ps => ps.map(p => p.id === pedido.id ? { ...p, recogido: !p.recogido } : p));
+      invalidateProduccion(pedido.fecha); invalidateSearchCache();
       notify("ok", pedido.recogido ? "Desmarcado" : "✓ Marcado como recogido");
     } catch (err) {
       notify("err", err.message);
@@ -398,6 +407,7 @@ export default function VyniaApp() {
     try {
       await notion.toggleNoAcude(pedido.id, pedido.noAcude);
       setPedidos(ps => ps.map(p => p.id === pedido.id ? { ...p, noAcude: !p.noAcude } : p));
+      invalidateProduccion(pedido.fecha); invalidateSearchCache();
       notify("ok", "Actualizado");
     } catch (err) {
       notify("err", err.message);
@@ -419,6 +429,7 @@ export default function VyniaApp() {
     try {
       await notion.archivarPedido(pedido.id);
       setPedidos(ps => ps.filter(p => p.id !== pedido.id));
+      invalidateProduccion(pedido.fecha); invalidateSearchCache();
       setSelectedPedido(null);
       setConfirmCancel(null);
       notify("ok", "Pedido cancelado");
@@ -442,6 +453,7 @@ export default function VyniaApp() {
     try {
       await notion.updatePage(pedido.id, { "Fecha entrega": { date: { start: newFecha } } });
       setPedidos(ps => ps.map(p => p.id === pedido.id ? { ...p, fecha: newFecha, hora: "" } : p));
+      invalidateProduccion(pedido.fecha); invalidateProduccion(newFecha); invalidateSearchCache();
       setEditingFecha(null);
       notify("ok", "Fecha actualizada");
     } catch (err) {
@@ -522,6 +534,7 @@ export default function VyniaApp() {
       resetForm();
       setTab("pedidos");
       loadPedidos();
+      invalidateProduccion(fecha); invalidateSearchCache();
     } catch (err) {
       notify("err", "Error: " + (err.message || "").substring(0, 100));
     } finally {
@@ -625,7 +638,7 @@ export default function VyniaApp() {
       maxWidth: 960,
       margin: "0 auto",
       position: "relative",
-      paddingBottom: 80,
+      paddingBottom: 90,
     }}>
       {/* ════ HEADER ════ */}
       <header style={{
@@ -913,6 +926,7 @@ export default function VyniaApp() {
                               fontSize: 15, fontWeight: 700,
                               color: p.recogido ? "#4F6867" : "#1B1C39",
                               textDecoration: p.recogido ? "line-through" : "none",
+                              overflowWrap: "break-word", wordBreak: "break-word",
                             }}>
                               {p.cliente || p.nombre}
                             </span>
@@ -963,7 +977,7 @@ export default function VyniaApp() {
                           {p.notas && (
                             <div style={{
                               fontSize: 11, color: "#1B1C39", marginTop: 4,
-                              fontStyle: "italic",
+                              fontStyle: "italic", overflowWrap: "break-word", wordBreak: "break-word",
                             }}>
                               📝 {p.notas}
                             </div>
@@ -1522,7 +1536,7 @@ export default function VyniaApp() {
                             Pedidos con {prod.nombre}:
                           </p>
                           {prod.pedidos.map((ped, i) => (
-                            <button title="Ver detalle del pedido" key={ped.pedidoId + "-" + i} onClick={() => setSelectedPedido(ped)}
+                            <button title="Ver detalle del pedido" key={ped.pedidoId + "-" + i} onClick={() => setSelectedPedido({ ...ped, id: ped.pedidoId })}
                               style={{
                                 width: "100%", padding: "10px 12px",
                                 border: "none",
@@ -1583,7 +1597,7 @@ export default function VyniaApp() {
             position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
             display: "flex", alignItems: "center", justifyContent: "center",
             zIndex: 200, padding: 20,
-          }} onClick={() => setSelectedPedido(null)}>
+          }} onClick={() => { setSelectedPedido(null); setEditingFecha(null); setConfirmCancel(null); }}>
             <div style={{
               background: "#fff", borderRadius: 16, padding: "24px 20px",
               maxWidth: 400, width: "100%",
@@ -1591,15 +1605,15 @@ export default function VyniaApp() {
               maxHeight: "80vh", overflowY: "auto",
             }} onClick={e => e.stopPropagation()}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1B1C39", fontFamily: "'Roboto Condensed', sans-serif" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1B1C39", fontFamily: "'Roboto Condensed', sans-serif", overflowWrap: "break-word", wordBreak: "break-word" }}>
                     {selectedPedido.cliente || (selectedPedido.pedidoTitulo || "").replace(/^Pedido\s+/i, "") || "Pedido"}
                   </h3>
                   {selectedPedido.numPedido > 0 && (
                     <span style={{ fontSize: 11, color: "#A2C2D0" }}>Pedido #{selectedPedido.numPedido}</span>
                   )}
                 </div>
-                <button title="Cerrar detalle" onClick={() => setSelectedPedido(null)} style={{
+                <button title="Cerrar detalle" onClick={() => { setSelectedPedido(null); setEditingFecha(null); setConfirmCancel(null); }} style={{
                   border: "none", background: "transparent", cursor: "pointer",
                   fontSize: 20, color: "#A2C2D0", padding: "0 4px",
                 }}>×</button>
@@ -1664,7 +1678,7 @@ export default function VyniaApp() {
                 )}
 
                 {selectedPedido.notas && (
-                  <div style={{ fontSize: 12, color: "#1B1C39", fontStyle: "italic", padding: "8px 12px", background: "#EFE9E4", borderRadius: 8 }}>
+                  <div style={{ fontSize: 12, color: "#1B1C39", fontStyle: "italic", padding: "8px 12px", background: "#EFE9E4", borderRadius: 8, overflowWrap: "break-word", wordBreak: "break-word" }}>
                     {selectedPedido.notas}
                   </div>
                 )}
@@ -1773,7 +1787,7 @@ export default function VyniaApp() {
           { key: "nuevo", icon: <I.Plus s={22} />, label: "Nuevo", tip: "Crear nuevo pedido" },
           { key: "produccion", icon: <I.Store s={22} />, label: "Producción", tip: "Ver producción diaria" },
         ].map(t => (
-          <button title={t.tip} key={t.key} onClick={() => { setTab(t.key); if (t.key === "nuevo") resetForm(); if (t.key === "produccion" && produccionData.length === 0) loadProduccion(); }}
+          <button title={t.tip} key={t.key} onClick={() => { setTab(t.key); if (t.key === "nuevo") resetForm(); if (t.key !== "pedidos") { setBusqueda(""); setAllPedidos(null); } if (t.key === "produccion" && produccionData.length === 0) loadProduccion(); }}
             style={{
               flex: 1, padding: "6px 0", border: "none",
               background: "transparent", cursor: "pointer",

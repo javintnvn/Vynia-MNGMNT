@@ -102,17 +102,19 @@ async function handleGet(req, res) {
       };
     });
 
-    // Resolve client names in parallel
+    // Resolve client names in batches of 5
     const clientNames = {};
-    await Promise.all(
-      [...clientIdsToFetch].map(async (cid) => {
-        try {
-          const clientPage = await notion.pages.retrieve({ page_id: cid });
-          const titleProp = Object.values(clientPage.properties).find(p => p.type === "title");
-          clientNames[cid] = titleProp ? (titleProp.title || []).map(t => t.plain_text).join("") : "";
-        } catch { clientNames[cid] = ""; }
-      })
-    );
+    const clientIds = [...clientIdsToFetch];
+    const fetchClient = async (cid) => {
+      try {
+        const clientPage = await notion.pages.retrieve({ page_id: cid });
+        const titleProp = Object.values(clientPage.properties).find(p => p.type === "title");
+        clientNames[cid] = titleProp ? (titleProp.title || []).map(t => t.plain_text).join("") : "";
+      } catch { clientNames[cid] = ""; }
+    };
+    for (let i = 0; i < clientIds.length; i += 5) {
+      await Promise.all(clientIds.slice(i, i + 5).map(fetchClient));
+    }
 
     const pedidos = pedidosRaw.map(ped => ({
       ...ped,

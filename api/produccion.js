@@ -30,6 +30,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    const BATCH_SIZE = 5; // Limit concurrent Notion API calls
     // 1. Get pedidos for the given date (include recogido for frontend discrimination)
     const pedidosRes = await notion.databases.query({
       database_id: DB_PEDIDOS,
@@ -76,17 +77,19 @@ export default async function handler(req, res) {
       if (clientId) clientIdsToFetch.add(clientId);
     }
 
-    // Fetch client names in parallel
+    // Fetch client names in batches of 5
     const clientNames = {};
-    await Promise.all(
-      [...clientIdsToFetch].map(async (cid) => {
-        try {
-          const clientPage = await notion.pages.retrieve({ page_id: cid });
-          const titleProp = Object.values(clientPage.properties).find(p => p.type === "title");
-          clientNames[cid] = titleProp ? (titleProp.title || []).map(t => t.plain_text).join("") : "";
-        } catch { clientNames[cid] = ""; }
-      })
-    );
+    const clientIds = [...clientIdsToFetch];
+    const fetchClient = async (cid) => {
+      try {
+        const clientPage = await notion.pages.retrieve({ page_id: cid });
+        const titleProp = Object.values(clientPage.properties).find(p => p.type === "title");
+        clientNames[cid] = titleProp ? (titleProp.title || []).map(t => t.plain_text).join("") : "";
+      } catch { clientNames[cid] = ""; }
+    };
+    for (let i = 0; i < clientIds.length; i += BATCH_SIZE) {
+      await Promise.all(clientIds.slice(i, i + BATCH_SIZE).map(fetchClient));
+    }
 
     // Assign client names to pedidos
     for (const ped of Object.values(pedidoMap)) {
@@ -100,7 +103,8 @@ export default async function handler(req, res) {
 
     for (const pid of pedidoIds) pedidoProductos[pid] = [];
 
-    await Promise.all(pedidoIds.map(async (pedidoId) => {
+    // Process registros in batches to avoid Notion rate limits
+    const fetchRegistros = async (pedidoId) => {
       let cursor = undefined;
       do {
         const regRes = await notion.databases.query({
@@ -135,7 +139,10 @@ export default async function handler(req, res) {
 
         cursor = regRes.has_more ? regRes.next_cursor : undefined;
       } while (cursor);
-    }));
+    };
+    for (let i = 0; i < pedidoIds.length; i += BATCH_SIZE) {
+      await Promise.all(pedidoIds.slice(i, i + BATCH_SIZE).map(fetchRegistros));
+    }
 
     // Attach full product list to each pedido entry in productosAgg
     for (const prod of Object.values(productosAgg)) {

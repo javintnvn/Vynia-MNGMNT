@@ -18,6 +18,10 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
+  if (typeof cantidad !== "number" || cantidad <= 0 || !Number.isInteger(cantidad)) {
+    return res.status(400).json({ error: "cantidad must be a positive integer" });
+  }
+
   try {
     // Search for product by name
     const productSearch = await notion.databases.query({
