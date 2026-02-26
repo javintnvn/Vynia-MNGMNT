@@ -14,7 +14,9 @@ Sistema de gestion de pedidos para **Vynia**, conectado a Notion como base de da
 - Click en pedido abre modal con detalle completo + productos cargados desde Registros
 - Click en telefono ofrece Llamar o enviar WhatsApp
 - Toggle de recogido y no acude
+- Modificar productos y cantidades de un pedido existente desde el modal (borra registros anteriores y recrea)
 - Cancelar pedido (archiva en Notion) y cambiar fecha de entrega desde el modal
+- Importe total calculado por pedido (carga progresiva en background desde CATALOGO + Registros)
 - Badges: PAGADO, INCIDENCIA
 - Stats bar con contadores (total, pendientes, recogidos)
 
@@ -51,10 +53,10 @@ Vynia-MNGMNT/
 │   ├── pedidos.js          # GET (listar con filtro fecha/estado) + POST (crear pedido)
 │   ├── pedidos/[id].js     # PATCH (toggle recogido, no acude, etc.)
 │   ├── clientes.js         # GET (buscar) + POST (buscar o crear cliente)
-│   ├── registros.js        # GET (productos de un pedido) + POST (crear linea de pedido)
+│   ├── registros.js        # GET (productos de un pedido) + POST (crear linea) + DELETE (archivar lineas)
 │   └── produccion.js       # GET (produccion diaria agregada con clientes, incluye recogidos)
 ├── src/
-│   ├── App.jsx             # Componente principal (toda la UI, ~1500 lineas)
+│   ├── App.jsx             # Componente principal (toda la UI, ~1900 lineas)
 │   └── api.js              # Cliente API frontend (wrapper fetch)
 ├── main.jsx                # Entry point React
 ├── index.html
@@ -89,11 +91,16 @@ Vynia-MNGMNT/
 
 ### GET /api/registros
 - Query params: `pedidoId=<notion_page_id>`
-- Devuelve productos de un pedido: `[{ nombre, unidades }]`
+- Devuelve productos de un pedido: `[{ id, nombre, unidades }]`
 
 ### POST /api/registros
 - Body: `{ pedidoPageId, productoNombre, cantidad }`
 - Busca producto por nombre en BD Productos y crea registro vinculado al pedido
+
+### DELETE /api/registros
+- Body: `{ registroIds: [string] }`
+- Archiva los registros (lineas de pedido) especificados en Notion
+- Usado para modificar pedidos: se borran los registros existentes y se recrean con los nuevos datos
 
 ### GET /api/produccion
 - Query params: `fecha=YYYY-MM-DD`
@@ -164,4 +171,6 @@ Se configura en `.env.local` para desarrollo local y en el dashboard de Vercel p
 - El telefono del cliente viene de un rollup en Pedidos: `p["Telefono"]?.rollup?.array[0]?.phone_number`
 - Para obtener nombre de cliente: resolver relacion `"Clientes"` → `notion.pages.retrieve` → buscar propiedad tipo `title`
 - Toda la UI esta en un solo componente `App.jsx` — no hay componentes separados
-- El catalogo de productos esta hardcodeado en `CATALOGO[]` en App.jsx
+- El catalogo de productos esta hardcodeado en `CATALOGO[]` en App.jsx (54 productos con nombre, precio, categoria)
+- El importe de cada pedido se calcula en frontend: se cargan registros en background por lotes de 5, se cruzan nombres de productos con CATALOGO (lookup case-insensitive con `toLowerCase().trim()`) y se suman `unidades * precio`
+- Modificar pedido usa estrategia delete-all + recreate: archiva todos los registros existentes y crea nuevos
