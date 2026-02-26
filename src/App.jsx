@@ -102,6 +102,7 @@ const I = {
   Euro: () => <span style={{fontWeight:700,fontSize:13}}>€</span>,
   Printer: (p = {}) => <svg width={p.s||18} height={p.s||18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>,
   Edit: (p = {}) => <svg width={p.s||14} height={p.s||14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>,
+  Ext: (p = {}) => <svg width={p.s||14} height={p.s||14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>,
 };
 
 // ─── DATE HELPERS ───
@@ -1932,6 +1933,13 @@ export default function VyniaApp() {
                     {selectedPedido.notas}
                   </div>
                 )}
+
+                {/* ── Ver en Notion ── */}
+                <a href={`https://www.notion.so/${selectedPedido.id.replace(/-/g, "")}`}
+                  target="_blank" rel="noopener noreferrer"
+                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 9, border: "1.5px solid #A2C2D0", background: "transparent", color: "#4F6867", fontSize: 12, fontWeight: 600, cursor: "pointer", width: "100%", textDecoration: "none", boxSizing: "border-box" }}>
+                  <I.Ext s={13} /> Ver en Notion
+                </a>
 
                 {/* ── Change date ── */}
                 {editingFecha?.pedidoId === selectedPedido.id ? (
