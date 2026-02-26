@@ -206,7 +206,8 @@ export default function VyniaApp() {
   const [pedidos, setPedidos] = useState([]);
   const [filtro, setFiltro] = useState("pendientes"); // pendientes | hoy | todos | recogidos
   const [filtroFecha, setFiltroFecha] = useState(fmt.todayISO()); // null = all dates
-  
+  const [busqueda, setBusqueda] = useState("");
+
   // Nuevo pedido form
   const [cliente, setCliente] = useState("");
   const [clienteSuggestions, setClienteSuggestions] = useState([]);
@@ -286,7 +287,7 @@ export default function VyniaApp() {
     }
   }, [apiMode, filtroFecha, notify]);
 
-  useEffect(() => { loadPedidos(); }, [apiMode]);
+  useEffect(() => { loadPedidos(); loadProduccion(); }, [apiMode]);
 
   // ─── LOAD PRODUCCION ───
   const loadProduccion = useCallback(async (fechaParam) => {
@@ -540,6 +541,14 @@ export default function VyniaApp() {
     if (filtro === "pendientes") return !p.recogido && !p.noAcude;
     if (filtro === "recogidos") return p.recogido;
     return true;
+  }).filter(p => {
+    if (!busqueda.trim()) return true;
+    const q = busqueda.toLowerCase();
+    return (p.cliente || "").toLowerCase().includes(q)
+      || (p.nombre || "").toLowerCase().includes(q)
+      || (p.tel || "").includes(q)
+      || (p.notas || "").toLowerCase().includes(q)
+      || String(p.numPedido || "").includes(q);
   });
 
   // Group by date
@@ -746,15 +755,18 @@ export default function VyniaApp() {
                   {d.label}
                 </button>
               ))}
-              <input type="date" lang="es" value={filtroFecha || ""}
-                onChange={e => { const v = e.target.value || null; setFiltroFecha(v); loadPedidos(v); }}
-                title="Seleccionar fecha concreta"
-                style={{
-                  padding: "8px 10px", borderRadius: 10,
-                  border: "1.5px solid #A2C2D0", fontSize: 13,
-                  background: "#EFE9E4", color: "#1B1C39",
-                  outline: "none", minWidth: 0, flex: 0.8,
-                }} />
+              <div style={{ flex: 0.8, position: "relative", display: "flex", alignItems: "center" }}>
+                <span style={{ position: "absolute", left: 8, fontSize: 14, pointerEvents: "none", zIndex: 1 }}>📅</span>
+                <input type="date" lang="es" value={filtroFecha || ""}
+                  onChange={e => { const v = e.target.value || null; setFiltroFecha(v); loadPedidos(v); }}
+                  title="Seleccionar fecha concreta"
+                  style={{
+                    width: "100%", padding: "8px 8px 8px 28px", borderRadius: 10,
+                    border: "2px solid #4F6867", fontSize: 13,
+                    background: "#fff", color: "#1B1C39",
+                    outline: "none",
+                  }} />
+              </div>
             </div>
 
             {/* Status filter pills */}
@@ -776,6 +788,22 @@ export default function VyniaApp() {
                   {f.label}
                 </button>
               ))}
+            </div>
+
+            {/* Search bar */}
+            <div style={{ position: "relative", marginBottom: 14 }}>
+              <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#A2C2D0", pointerEvents: "none" }}>
+                <I.Search s={16} />
+              </div>
+              <input placeholder="Buscar por cliente, teléfono, notas..."
+                value={busqueda} onChange={e => setBusqueda(e.target.value)}
+                style={{
+                  width: "100%", padding: "10px 10px 10px 36px", borderRadius: 10,
+                  border: "1.5px solid #A2C2D0", fontSize: 13,
+                  background: "#fff", color: "#1B1C39",
+                  outline: "none", boxSizing: "border-box",
+                  fontFamily: "'Roboto Condensed', sans-serif",
+                }} />
             </div>
 
             {/* Orders grouped by date */}
@@ -1044,9 +1072,12 @@ export default function VyniaApp() {
                 ))}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
-                <input type="date" lang="es" value={fecha}
-                  onChange={e => setFecha(e.target.value)}
-                  style={inputStyle} />
+                <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                  <span style={{ position: "absolute", left: 10, fontSize: 14, pointerEvents: "none", zIndex: 1 }}>📅</span>
+                  <input type="date" lang="es" value={fecha}
+                    onChange={e => setFecha(e.target.value)}
+                    style={{ ...inputStyle, paddingLeft: 30, border: "2px solid #4F6867", background: "#fff" }} />
+                </div>
                 <input type="time" value={hora}
                   onChange={e => setHora(e.target.value)}
                   placeholder="Hora"
@@ -1315,14 +1346,17 @@ export default function VyniaApp() {
                   {d.label}
                 </button>
               ))}
-              <input type="date" lang="es" value={produccionFecha}
-                onChange={e => { setProduccionFecha(e.target.value); setExpandedProduct(null); loadProduccion(e.target.value); }}
-                style={{
-                  padding: "8px 10px", borderRadius: 10,
-                  border: "1.5px solid #A2C2D0", fontSize: 13,
-                  background: "#EFE9E4", color: "#1B1C39",
-                  outline: "none", minWidth: 0, flex: 0.8,
-                }} />
+              <div style={{ flex: 0.8, position: "relative", display: "flex", alignItems: "center" }}>
+                <span style={{ position: "absolute", left: 8, fontSize: 14, pointerEvents: "none", zIndex: 1 }}>📅</span>
+                <input type="date" lang="es" value={produccionFecha}
+                  onChange={e => { setProduccionFecha(e.target.value); setExpandedProduct(null); loadProduccion(e.target.value); }}
+                  style={{
+                    width: "100%", padding: "8px 8px 8px 28px", borderRadius: 10,
+                    border: "2px solid #4F6867", fontSize: 13,
+                    background: "#fff", color: "#1B1C39",
+                    outline: "none",
+                  }} />
+              </div>
             </div>
 
             {/* Product list */}
