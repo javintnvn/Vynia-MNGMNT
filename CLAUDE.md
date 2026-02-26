@@ -31,10 +31,10 @@ Vynia-MNGMNT/
 
 | BD | ID | Uso |
 |----|-----|-----|
-| Pedidos | `1c418b3a-38b1-8176-a42b-000b33f3b1aa` | Pedidos de clientes |
-| Clientes | `1c418b3a-38b1-8128-83fc-000bc7a1d4a0` | Datos de clientes |
-| Productos | `1c418b3a-38b1-8150-824c-000b6afbcc5f` | Catalogo de productos |
-| Registros | `1d418b3a-38b1-8039-b0bb-000bb10081f3` | Lineas de pedido (producto + cantidad) |
+| Pedidos | `1c418b3a-38b1-81a1-9f3c-da137557fcf6` | Pedidos de clientes |
+| Clientes | `1c418b3a-38b1-811f-b3ab-ea7a5e513ace` | Datos de clientes |
+| Productos | `1c418b3a-38b1-8186-8da9-cfa6c2f0fcd2` | Catalogo de productos |
+| Registros | `1d418b3a-38b1-808b-9afb-c45193c1270b` | Lineas de pedido (producto + cantidad) |
 
 ## Propiedades Notion importantes
 

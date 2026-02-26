@@ -1,8 +1,8 @@
 import { Client } from "@notionhq/client";
 
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
-const DB_PRODUCTOS = "1c418b3a-38b1-8150-824c-000b6afbcc5f";
-const DB_REGISTROS = "1d418b3a-38b1-8039-b0bb-000bb10081f3";
+const DB_PRODUCTOS = "1c418b3a-38b1-8186-8da9-cfa6c2f0fcd2";
+const DB_REGISTROS = "1d418b3a-38b1-808b-9afb-c45193c1270b";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {

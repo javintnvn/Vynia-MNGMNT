@@ -1,7 +1,7 @@
 import { Client } from "@notionhq/client";
 
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
-const DB_PEDIDOS = "1c418b3a-38b1-8176-a42b-000b33f3b1aa";
+const DB_PEDIDOS = "1c418b3a-38b1-81a1-9f3c-da137557fcf6";
 
 function extractTitle(prop) {
   if (!prop || prop.type !== "title") return "";
