@@ -1,0 +1,65 @@
+# Vynia MNGMNT — Sistema de Gestion de Pedidos
+
+## Stack
+- **Frontend**: React 19 + Vite 6
+- **Backend**: Vercel Serverless Functions
+- **Database**: Notion API via `@notionhq/client`
+- **Deploy**: Vercel
+
+## Estructura
+
+```
+Vynia-MNGMNT/
+├── api/                    # Vercel Serverless Functions
+│   ├── pedidos.js          # GET (listar) + POST (crear pedido)
+│   ├── pedidos/[id].js     # PATCH (toggle recogido, no acude, etc.)
+│   ├── clientes.js         # POST (buscar o crear cliente)
+│   ├── registros.js        # POST (crear linea de pedido)
+│   └── produccion.js       # GET (produccion diaria agregada)
+├── src/
+│   ├── App.jsx             # Componente principal (toda la UI)
+│   └── api.js              # Cliente API frontend
+├── main.jsx                # Entry point React
+├── index.html
+├── vite.config.js
+├── vercel.json
+├── .env.local              # NOTION_TOKEN (gitignored)
+└── package.json
+```
+
+## Bases de Datos Notion
+
+| BD | ID | Uso |
+|----|-----|-----|
+| Pedidos | `1c418b3a-38b1-8176-a42b-000b33f3b1aa` | Pedidos de clientes |
+| Clientes | `1c418b3a-38b1-8128-83fc-000bc7a1d4a0` | Datos de clientes |
+| Productos | `1c418b3a-38b1-8150-824c-000b6afbcc5f` | Catalogo de productos |
+| Registros | `1d418b3a-38b1-8039-b0bb-000bb10081f3` | Lineas de pedido (producto + cantidad) |
+
+## Propiedades Notion importantes
+
+- `"Unidades "` en Registros tiene un **espacio trailing** — no borrar
+- `"No acude"` en Pedidos — nombre exacto con espacio
+- `"Pagado al reservar"` en Pedidos — nombre exacto
+- `"Fecha entrega"` en Pedidos — tipo date, puede incluir hora
+- `"Fecha Creacion"` en Pedidos — fecha de creacion del pedido
+
+## Desarrollo local
+
+```bash
+npm install
+vercel dev          # para API routes (necesita NOTION_TOKEN en .env.local)
+# o
+npx vite            # solo frontend (modo DEMO funciona sin API)
+```
+
+## Tabs de la app
+
+1. **Pedidos** — Lista de pedidos con filtros (pendientes/hoy/recogidos/todos), toggle recogido/no acude
+2. **Nuevo** — Formulario para crear pedido (cliente + fecha + productos del catalogo)
+3. **Produccion** — Vista agregada de productos por dia con drill-down a pedidos
+
+## Modos
+
+- **LIVE** — Conecta a Notion API real
+- **DEMO** — Datos locales para testing sin API

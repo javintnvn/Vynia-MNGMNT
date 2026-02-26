@@ -1,197 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { notion } from "./api.js";
 
 // ════════════════════════════════════════════════════════════
 //  VYNIA — Sistema de Gestión de Pedidos
-//  Backend: Notion via Anthropic MCP (no CORS issues)
+//  Backend: Vercel Serverless → Notion API (direct)
 //  Design: Vynia brand palette, desktop-first
 // ════════════════════════════════════════════════════════════
 
-// ─── NOTION VIA ANTHROPIC MCP (bypasses CORS) ───
-const NOTION_MCP = { type: "url", url: "https://mcp.notion.com/mcp", name: "Notion" };
-
 const VYNIA_LOGO = "data:image/png;base64,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";
 const VYNIA_LOGO_MD = "data:image/png;base64,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";
-// Data source IDs (collection:// format for MCP)
-const DS = {
-  pedidos: "1c418b3a-38b1-8176-a42b-000b33f3b1aa",
-  clientes: "1c418b3a-38b1-8128-83fc-000bc7a1d4a0",
-  productos: "1c418b3a-38b1-8150-824c-000b6afbcc5f",
-  registros: "1d418b3a-38b1-8039-b0bb-000bb10081f3",
-};
 
-// View IDs for querying with pre-configured filters
-const VIEWS = {
-  ptesRecoger: "https://www.notion.so/1c418b3a38b181a19f3cda137557fcf6?v=1d518b3a38b180659f1000cd0e85a03",
-  recogidos: "https://www.notion.so/1c418b3a38b181a19f3cda137557fcf6?v=1d518b3a38b1805f867d000c38cb9886",
-};
 
-// ─── MCP API LAYER ───
-async function mcpCall(prompt) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 16000,
-      system: `Eres un asistente de base de datos Notion para Vynia (obrador sin gluten).
-Ejecuta las operaciones solicitadas usando las herramientas de Notion MCP.
-Cuando devuelvas datos, responde SOLO con JSON válido envuelto así: %%%JSON_START%%%{...}%%%JSON_END%%%
-NO uses markdown, backticks, ni explicaciones. Solo el JSON entre los marcadores.`,
-      messages: [{ role: "user", content: prompt }],
-      mcp_servers: [NOTION_MCP],
-    }),
-  });
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`API Error ${res.status}: ${errText.substring(0, 200)}`);
-  }
-  const data = await res.json();
-
-  // Extract all content
-  const texts = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n");
-  const toolResults = (data.content || []).filter(b => b.type === "mcp_tool_result")
-    .map(b => { try { return b.content?.[0]?.text || ""; } catch { return ""; } });
-
-  // Try to parse structured JSON from text response
-  let parsed = null;
-  const jsonMatch = texts.match(/%%%JSON_START%%%([\s\S]*?)%%%JSON_END%%%/);
-  if (jsonMatch) {
-    try { parsed = JSON.parse(jsonMatch[1].trim()); } catch {}
-  }
-  if (!parsed) {
-    // Fallback: try to find JSON in text
-    const fbMatch = texts.match(/\{[\s\S]*\}/);
-    if (fbMatch) { try { parsed = JSON.parse(fbMatch[0]); } catch {} }
-  }
-
-  return { texts, toolResults, parsed, raw: data };
-}
-
-// Higher-level Notion operations via MCP
-const notion = {
-  async loadPedidos() {
-    const r = await mcpCall(
-      `Busca en la base de datos Notion "Pedidos" (data source collection://${DS.pedidos}).
-Usa la herramienta de search con query "pedidos" para encontrarla, luego usa query_data_sources o fetch para obtener las páginas.
-
-Necesito los pedidos que NO estén recogidos y NO marquen "No acude". Ordénalos por "Fecha entrega" ascendente.
-
-Para cada pedido devuelve un JSON array con estos campos:
-- id: el page ID
-- titulo: propiedad "Pedido" (title)
-- fecha: propiedad "Fecha entrega" (start date)
-- recogido: propiedad "Recogido" (boolean)
-- noAcude: propiedad "No acude" (boolean) 
-- pagado: propiedad "Pagado al reservar" (boolean)
-- incidencia: propiedad "Incidencia" (boolean)
-- notas: propiedad "Notas" (text)
-- numPedido: propiedad "Nº Pedido" (auto increment number)
-
-Responde SOLO con el JSON array envuelto en %%%JSON_START%%% y %%%JSON_END%%%`
-    );
-    return r.parsed || [];
-  },
-
-  async loadAllPedidos() {
-    const r = await mcpCall(
-      `Busca TODOS los pedidos en la base de datos "Pedidos" (data source collection://${DS.pedidos}).
-Usa query_data_sources si está disponible, o fetch + search.
-
-Para cada pedido devuelve:
-- id: page ID
-- titulo: "Pedido" (title)
-- fecha: "Fecha entrega" (start date ISO)
-- recogido: "Recogido" (boolean)
-- noAcude: "No acude" (boolean)
-- pagado: "Pagado al reservar" (boolean)
-- incidencia: "Incidencia" (boolean)
-- notas: "Notas" (text)
-- numPedido: "Nº Pedido" (number)
-
-Ordena por Fecha entrega ascendente. Devuelve SOLO JSON array en %%%JSON_START%%% y %%%JSON_END%%%`
-    );
-    return r.parsed || [];
-  },
-
-  async updatePage(pageId, properties) {
-    const propsDesc = Object.entries(properties)
-      .map(([k, v]) => `"${k}": ${JSON.stringify(v)}`)
-      .join(", ");
-    await mcpCall(
-      `Actualiza la página de Notion con ID "${pageId}".
-Cambia estas propiedades: ${propsDesc}
-
-Usa la herramienta update-page de Notion MCP. Confirma con %%%JSON_START%%%{"ok":true}%%%JSON_END%%%`
-    );
-  },
-
-  async toggleRecogido(pageId, currentValue) {
-    await mcpCall(
-      `Actualiza la página de Notion con ID "${pageId}".
-Cambia la propiedad "Recogido" a ${currentValue ? '"__NO__"' : '"__YES__"'}.
-Usa la herramienta update-page. Confirma con %%%JSON_START%%%{"ok":true}%%%JSON_END%%%`
-    );
-  },
-
-  async toggleNoAcude(pageId, currentValue) {
-    await mcpCall(
-      `Actualiza la página de Notion con ID "${pageId}".
-Cambia la propiedad "No acude" a ${currentValue ? '"__NO__"' : '"__YES__"'}.
-Usa la herramienta update-page. Confirma con %%%JSON_START%%%{"ok":true}%%%JSON_END%%%`
-    );
-  },
-
-  async findOrCreateCliente(nombre, telefono) {
-    const r = await mcpCall(
-      `Busca en la base de datos "Clientes" (data source collection://${DS.clientes}) un cliente con nombre exacto "${nombre}".
-
-Si lo encuentras, devuelve su page ID.
-Si NO lo encuentras, crea una nueva página en esa data source con:
-- Título/Nombre: "${nombre}"
-${telefono ? `- Teléfono: "${telefono}"` : ""}
-
-Devuelve: %%%JSON_START%%%{"id": "el-page-id", "created": true/false}%%%JSON_END%%%`
-    );
-    return r.parsed;
-  },
-
-  async crearPedido(clienteNombre, clientePageId, fecha, hora, pagado, notas, lineas) {
-    const fechaStr = hora ? `${fecha}T${hora}:00` : fecha;
-    const lineasDesc = lineas.map(l => `${l.cantidad}x ${l.nombre} (€${l.precio})`).join(", ");
-
-    const r = await mcpCall(
-      `Crea un nuevo pedido en la base de datos "Pedidos" (data source collection://${DS.pedidos}) con estas propiedades:
-- "Pedido" (title): "Pedido ${clienteNombre}"
-- "Clientes" (relation): ["${clientePageId}"]
-- "date:Fecha entrega:start": "${fechaStr}"
-- "date:Fecha entrega:is_datetime": ${hora ? 1 : 0}
-- "date:Fecha Creación:start": "${new Date().toISOString().split("T")[0]}"
-- "Pagado al reservar": ${pagado ? '"__YES__"' : '"__NO__"'}
-${notas ? `- "Notas": "${notas}"` : ""}
-
-Usa create-pages con parent data_source_id "${DS.pedidos}".
-
-Devuelve el ID de la página creada: %%%JSON_START%%%{"id": "page-id"}%%%JSON_END%%%`
-    );
-    return r.parsed;
-  },
-
-  async crearRegistro(pedidoPageId, productoNombre, cantidad) {
-    const r = await mcpCall(
-      `Primero busca el producto "${productoNombre}" en la base de datos "Productos" (data source collection://${DS.productos}).
-
-Luego crea una entrada en "Registros" (data source collection://${DS.registros}) con:
-- Título: "${productoNombre}"
-- "Unidades " (number): ${cantidad}
-- "Pedidos" (relation): ["el-page-id-del-pedido:${pedidoPageId}"]
-- "Productos" (relation): [el-page-id-del-producto-encontrado] (si se encontró)
-
-Usa create-pages con parent data_source_id "${DS.registros}".
-Devuelve: %%%JSON_START%%%{"ok":true}%%%JSON_END%%%`
-    );
-    return r.parsed;
-  },
-};
 
 // ─── PRODUCT CATALOG (pre-loaded for instant search) ───
 const CATALOGO = [
@@ -326,7 +145,7 @@ const fmt = {
 // ═══════════════════════════════════════════════════════════
 export default function VyniaApp() {
   // ─── STATE ───
-  const [tab, setTab] = useState("pedidos");   // pedidos | nuevo | config
+  const [tab, setTab] = useState("pedidos");   // pedidos | nuevo | produccion
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState(null);     // { type: "ok"|"err", msg }
   const [apiMode, setApiMode] = useState("live"); // demo | live
@@ -345,7 +164,13 @@ export default function VyniaApp() {
   const [lineas, setLineas] = useState([]);
   const [searchProd, setSearchProd] = useState("");
   const [showCatFull, setShowCatFull] = useState(false);
-  
+
+  // Produccion diaria
+  const [produccionData, setProduccionData] = useState([]);
+  const [produccionFecha, setProduccionFecha] = useState(fmt.todayISO());
+  const [expandedProduct, setExpandedProduct] = useState(null);
+  const [selectedPedido, setSelectedPedido] = useState(null);
+
   // Refs
   const toastTimer = useRef(null);
   const searchRef = useRef(null);
@@ -401,6 +226,43 @@ export default function VyniaApp() {
   }, [apiMode, notify]);
 
   useEffect(() => { loadPedidos(); }, [apiMode]);
+
+  // ─── LOAD PRODUCCION ───
+  const loadProduccion = useCallback(async (fechaParam) => {
+    const f = fechaParam || produccionFecha;
+    if (apiMode === "demo") {
+      // Parse demo pedidos to generate produccion data
+      const demoPedidos = [
+        { id: "demo-1", nombre: "Pedido María García", cliente: "María García", tel: "600123456", fecha: fmt.todayISO(), hora: "10:30", productos: "2x Cookie pistacho, 1x Brownie", importe: 8.60, recogido: false, pagado: true, notas: "", noAcude: false, incidencia: false },
+        { id: "demo-2", nombre: "Pedido Juan López", cliente: "Juan López", tel: "612345678", fecha: fmt.todayISO(), hora: "12:00", productos: "1x Hogaza Miel, 3x Viñacaos", importe: 18.50, recogido: false, pagado: false, notas: "Sin nueces", noAcude: false, incidencia: false },
+        { id: "demo-4", nombre: "Pedido Carlos", cliente: "Carlos Martín", tel: "677888999", fecha: fmt.todayISO(), hora: "09:00", productos: "4x Magdalenas, 2x Bollitos", importe: 9.60, recogido: false, pagado: true, notas: "", noAcude: false, incidencia: false },
+      ];
+      const filtered = demoPedidos.filter(p => (p.fecha || "").startsWith(f) && !p.recogido && !p.noAcude);
+      const agg = {};
+      filtered.forEach(p => {
+        (p.productos || "").split(",").forEach(item => {
+          const m = item.trim().match(/^(\d+)x\s+(.+)$/);
+          if (!m) return;
+          const qty = parseInt(m[1], 10);
+          const name = m[2].trim();
+          if (!agg[name]) agg[name] = { nombre: name, totalUnidades: 0, pedidos: [] };
+          agg[name].totalUnidades += qty;
+          agg[name].pedidos.push({ pedidoId: p.id, pedidoTitulo: p.nombre, unidades: qty, fecha: p.fecha, recogido: p.recogido, pagado: p.pagado, notas: p.notas, cliente: p.cliente, tel: p.tel, hora: p.hora });
+        });
+      });
+      setProduccionData(Object.values(agg).sort((a, b) => a.nombre.localeCompare(b.nombre, "es")));
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await notion.loadProduccion(f);
+      setProduccionData(data.productos || []);
+    } catch (err) {
+      notify("err", "Error cargando producción: " + (err.message || "").substring(0, 100));
+    } finally {
+      setLoading(false);
+    }
+  }, [apiMode, produccionFecha, notify]);
 
   // ─── MARK RECOGIDO ───
   const toggleRecogido = async (pedido) => {
@@ -477,16 +339,10 @@ export default function VyniaApp() {
       const clienteRes = await notion.findOrCreateCliente(cliente.trim(), telefono);
       if (!clienteRes?.id) throw new Error("No se pudo crear/encontrar el cliente");
 
-      // 2. Create order
-      const pedidoRes = await notion.crearPedido(
+      // 2. Create order + line items (handled by api.js)
+      await notion.crearPedido(
         cliente.trim(), clienteRes.id, fecha, hora, pagado, notas, lineas
       );
-      if (!pedidoRes?.id) throw new Error("No se pudo crear el pedido");
-
-      // 3. Create line items
-      for (const linea of lineas) {
-        await notion.crearRegistro(pedidoRes.id, linea.nombre, linea.cantidad);
-      }
 
       const total = lineas.reduce((s, l) => s + l.cantidad * l.precio, 0);
       notify("ok", `✓ Pedido creado en Notion: ${cliente} — €${total.toFixed(2)}`);
@@ -565,8 +421,6 @@ export default function VyniaApp() {
       position: "relative",
       paddingBottom: 80,
     }}>
-      <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900&display=swap" rel="stylesheet" />
-
       {/* ════ HEADER ════ */}
       <header style={{
         background: "linear-gradient(180deg, #E1F2FC 0%, #EFE9E4 100%)",
@@ -1216,6 +1070,245 @@ export default function VyniaApp() {
             </p>
           </div>
         )}
+
+        {/* ══════════════════════════════════════════
+            TAB: PRODUCCION DIARIA
+        ══════════════════════════════════════════ */}
+        {tab === "produccion" && (
+          <div style={{ paddingTop: 16 }}>
+            <h2 style={{
+              fontFamily: "'Roboto Condensed', sans-serif", fontSize: 22, fontWeight: 700,
+              margin: "0 0 16px", color: "#1B1C39",
+            }}>Producción Diaria</h2>
+
+            {/* Date selector */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+              {[
+                { label: "Hoy", val: fmt.todayISO() },
+                { label: "Mañana", val: fmt.tomorrowISO() },
+                { label: "Pasado", val: fmt.dayAfterISO() },
+              ].map(d => (
+                <button key={d.label} onClick={() => { setProduccionFecha(d.val); setExpandedProduct(null); loadProduccion(d.val); }}
+                  style={{
+                    flex: 1, padding: "10px 0", borderRadius: 10,
+                    border: produccionFecha === d.val ? "2px solid #4F6867" : "1.5px solid #A2C2D0",
+                    background: produccionFecha === d.val ? "#E1F2FC" : "#EFE9E4",
+                    color: produccionFecha === d.val ? "#1B1C39" : "#4F6867",
+                    fontWeight: produccionFecha === d.val ? 700 : 500,
+                    fontSize: 13, cursor: "pointer",
+                    transition: "all 0.15s",
+                  }}>
+                  {d.label}
+                </button>
+              ))}
+              <input type="date" value={produccionFecha}
+                onChange={e => { setProduccionFecha(e.target.value); setExpandedProduct(null); loadProduccion(e.target.value); }}
+                style={{
+                  padding: "8px 10px", borderRadius: 10,
+                  border: "1.5px solid #A2C2D0", fontSize: 13,
+                  background: "#EFE9E4", color: "#1B1C39",
+                  outline: "none", minWidth: 0, flex: 0.8,
+                }} />
+            </div>
+
+            {/* Product list */}
+            {produccionData.length === 0 ? (
+              <div style={{
+                textAlign: "center", padding: "40px 20px", color: "#A2C2D0",
+              }}>
+                <I.Store s={40} />
+                <p style={{ marginTop: 12, fontSize: 14 }}>No hay producción para este día</p>
+                <button onClick={() => loadProduccion()} style={{
+                  marginTop: 8, padding: "8px 16px", borderRadius: 8,
+                  border: "1px solid #A2C2D0", background: "#fff",
+                  cursor: "pointer", fontSize: 12, color: "#4F6867", fontWeight: 600,
+                }}>Cargar</button>
+              </div>
+            ) : (
+              <div>
+                {/* Summary */}
+                <div style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  padding: "10px 14px", marginBottom: 12,
+                  background: "#E1F2FC", borderRadius: 10,
+                }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "#4F6867" }}>
+                    {produccionData.length} {produccionData.length === 1 ? "producto" : "productos"}
+                  </span>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: "#1B1C39", fontFamily: "'Roboto Condensed', sans-serif" }}>
+                    {produccionData.reduce((s, p) => s + p.totalUnidades, 0)} uds total
+                  </span>
+                </div>
+
+                {produccionData.map(prod => (
+                  <div key={prod.nombre} style={{
+                    background: "#fff", borderRadius: 14, border: "1px solid #A2C2D0",
+                    marginBottom: 8, overflow: "hidden",
+                    boxShadow: "0 1px 4px rgba(60,50,30,0.04)",
+                  }}>
+                    {/* Product row */}
+                    <button onClick={() => setExpandedProduct(expandedProduct === prod.nombre ? null : prod.nombre)}
+                      style={{
+                        width: "100%", padding: "14px 16px",
+                        border: "none", background: "transparent",
+                        cursor: "pointer", display: "flex",
+                        alignItems: "center", justifyContent: "space-between",
+                        textAlign: "left",
+                      }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <I.Box s={18} />
+                        <span style={{ fontSize: 15, fontWeight: 600, color: "#1B1C39" }}>
+                          {prod.nombre}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{
+                          fontSize: 18, fontWeight: 800, color: "#4F6867",
+                          fontFamily: "'Roboto Condensed', sans-serif",
+                        }}>
+                          {prod.totalUnidades} uds
+                        </span>
+                        <span style={{
+                          fontSize: 10, color: "#A2C2D0",
+                          transform: expandedProduct === prod.nombre ? "rotate(90deg)" : "rotate(0deg)",
+                          transition: "transform 0.2s",
+                        }}>▶</span>
+                      </div>
+                    </button>
+
+                    {/* Expanded: pedidos list */}
+                    {expandedProduct === prod.nombre && (
+                      <div style={{
+                        borderTop: "1px solid #E1F2FC",
+                        padding: "8px 16px 12px",
+                        background: "#FAFAFA",
+                      }}>
+                        <p style={{ fontSize: 10, color: "#A2C2D0", margin: "0 0 6px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                          Pedidos con {prod.nombre}:
+                        </p>
+                        {prod.pedidos.map((ped, i) => (
+                          <button key={ped.pedidoId + "-" + i} onClick={() => setSelectedPedido(ped)}
+                            style={{
+                              width: "100%", padding: "10px 12px",
+                              border: "none",
+                              borderBottom: i < prod.pedidos.length - 1 ? "1px solid #E1F2FC" : "none",
+                              background: "transparent", cursor: "pointer",
+                              display: "flex", alignItems: "center", justifyContent: "space-between",
+                              textAlign: "left", fontSize: 13,
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = "#E1F2FC"}
+                            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                          >
+                            <div>
+                              <span style={{ fontWeight: 600, color: "#1B1C39" }}>
+                                {(ped.pedidoTitulo || "").replace(/^Pedido\s+/i, "")}
+                              </span>
+                              {ped.pagado && (
+                                <span style={{
+                                  fontSize: 9, padding: "1px 5px", borderRadius: 3,
+                                  background: "#E8F5E9", color: "#2E7D32", fontWeight: 700,
+                                  marginLeft: 6,
+                                }}>PAGADO</span>
+                              )}
+                            </div>
+                            <span style={{ fontWeight: 700, color: "#4F6867" }}>
+                              {ped.unidades} ud{ped.unidades !== 1 ? "s" : ""}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════
+            MODAL: DETALLE PEDIDO
+        ══════════════════════════════════════════ */}
+        {selectedPedido && (
+          <div style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 200, padding: 20,
+          }} onClick={() => setSelectedPedido(null)}>
+            <div style={{
+              background: "#fff", borderRadius: 16, padding: "24px 20px",
+              maxWidth: 400, width: "100%",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+              maxHeight: "80vh", overflowY: "auto",
+            }} onClick={e => e.stopPropagation()}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1B1C39", fontFamily: "'Roboto Condensed', sans-serif" }}>
+                  {(selectedPedido.pedidoTitulo || "").replace(/^Pedido\s+/i, "") || selectedPedido.cliente || "Pedido"}
+                </h3>
+                <button onClick={() => setSelectedPedido(null)} style={{
+                  border: "none", background: "transparent", cursor: "pointer",
+                  fontSize: 20, color: "#A2C2D0", padding: "0 4px",
+                }}>×</button>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {selectedPedido.fecha && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                    <I.Cal s={14} />
+                    <span style={{ color: "#4F6867" }}>{fmt.date(selectedPedido.fecha)}</span>
+                    {(selectedPedido.hora || fmt.time(selectedPedido.fecha)) && (
+                      <span style={{ color: "#1B1C39", fontWeight: 600 }}>
+                        {selectedPedido.hora || fmt.time(selectedPedido.fecha)}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {selectedPedido.tel && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                    <I.Phone s={14} />
+                    <a href={`tel:${selectedPedido.tel}`} style={{ color: "#1B1C39", textDecoration: "none" }}>
+                      {selectedPedido.tel}
+                    </a>
+                  </div>
+                )}
+
+                {/* Badges */}
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {selectedPedido.pagado && (
+                    <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: "#E8F5E9", color: "#2E7D32", fontWeight: 700 }}>PAGADO</span>
+                  )}
+                  {selectedPedido.recogido && (
+                    <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: "#E8F5E9", color: "#2E7D32", fontWeight: 700 }}>RECOGIDO</span>
+                  )}
+                  {selectedPedido.incidencia && (
+                    <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: "#FDE8E5", color: "#C62828", fontWeight: 700 }}>INCIDENCIA</span>
+                  )}
+                  {selectedPedido.noAcude && (
+                    <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: "#FDE8E5", color: "#C62828", fontWeight: 700 }}>NO ACUDE</span>
+                  )}
+                </div>
+
+                {selectedPedido.notas && (
+                  <div style={{ fontSize: 12, color: "#1B1C39", fontStyle: "italic", padding: "8px 12px", background: "#EFE9E4", borderRadius: 8 }}>
+                    {selectedPedido.notas}
+                  </div>
+                )}
+
+                {selectedPedido.unidades && (
+                  <div style={{ fontSize: 13, color: "#4F6867", fontWeight: 600 }}>
+                    Cantidad en este producto: {selectedPedido.unidades} ud{selectedPedido.unidades !== 1 ? "s" : ""}
+                  </div>
+                )}
+
+                {selectedPedido.numPedido > 0 && (
+                  <div style={{ fontSize: 11, color: "#A2C2D0" }}>
+                    N.º Pedido: {selectedPedido.numPedido}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* ════ BOTTOM NAV ════ */}
@@ -1231,8 +1324,9 @@ export default function VyniaApp() {
         {[
           { key: "pedidos", icon: <I.List s={22} />, label: "Pedidos" },
           { key: "nuevo", icon: <I.Plus s={22} />, label: "Nuevo" },
+          { key: "produccion", icon: <I.Store s={22} />, label: "Producción" },
         ].map(t => (
-          <button key={t.key} onClick={() => { setTab(t.key); if (t.key === "nuevo") resetForm(); }}
+          <button key={t.key} onClick={() => { setTab(t.key); if (t.key === "nuevo") resetForm(); if (t.key === "produccion") loadProduccion(); }}
             style={{
               flex: 1, padding: "6px 0", border: "none",
               background: "transparent", cursor: "pointer",
