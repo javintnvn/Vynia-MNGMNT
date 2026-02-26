@@ -49,10 +49,17 @@ export default async function handler(req, res) {
       return res.status(200).json({ productos: [] });
     }
 
-    // Build pedido info map
+    // Build pedido info map + fetch client names
     const pedidoMap = {};
+    const clientIdsToFetch = new Set();
+
     for (const page of pedidos) {
       const p = page.properties;
+      const clientRelation = p["Clientes"]?.relation || [];
+      const clientId = clientRelation.length > 0 ? clientRelation[0].id : null;
+      const telRollup = p["Teléfono"]?.rollup?.array || [];
+      const telefono = telRollup.length > 0 ? (telRollup[0].phone_number || "") : "";
+
       pedidoMap[page.id] = {
         pedidoId: page.id,
         pedidoTitulo: extractTitle(p["Pedido"]),
@@ -62,14 +69,37 @@ export default async function handler(req, res) {
         pagado: p["Pagado al reservar"]?.checkbox || false,
         incidencia: p["Incidencia"]?.checkbox || false,
         notas: extractRichText(p["Notas"]),
-        numPedido: p["Nº Pedido"]?.number || 0,
+        numPedido: p["Nº Pedido"]?.unique_id?.number || 0,
+        clienteId: clientId,
+        cliente: "",
+        telefono,
       };
+      if (clientId) clientIdsToFetch.add(clientId);
+    }
+
+    // Fetch client names in parallel
+    const clientNames = {};
+    await Promise.all(
+      [...clientIdsToFetch].map(async (cid) => {
+        try {
+          const clientPage = await notion.pages.retrieve({ page_id: cid });
+          const titleProp = Object.values(clientPage.properties).find(p => p.type === "title");
+          clientNames[cid] = titleProp ? (titleProp.title || []).map(t => t.plain_text).join("") : "";
+        } catch { clientNames[cid] = ""; }
+      })
+    );
+
+    // Assign client names to pedidos
+    for (const ped of Object.values(pedidoMap)) {
+      if (ped.clienteId) ped.cliente = clientNames[ped.clienteId] || "";
     }
 
     // 2. For each pedido, query registros
     const productosAgg = {}; // nombre -> { totalUnidades, pedidos: [] }
+    const pedidoProductos = {}; // pedidoId -> [{ nombre, unidades }]
 
     for (const pedidoId of Object.keys(pedidoMap)) {
+      pedidoProductos[pedidoId] = [];
       let cursor = undefined;
       do {
         const regRes = await notion.databases.query({
@@ -92,6 +122,8 @@ export default async function handler(req, res) {
 
           if (!nombre || unidades === 0) continue;
 
+          pedidoProductos[pedidoId].push({ nombre, unidades });
+
           if (!productosAgg[nombre]) {
             productosAgg[nombre] = { nombre, totalUnidades: 0, pedidos: [] };
           }
@@ -104,6 +136,13 @@ export default async function handler(req, res) {
 
         cursor = regRes.has_more ? regRes.next_cursor : undefined;
       } while (cursor);
+    }
+
+    // Attach full product list to each pedido entry in productosAgg
+    for (const prod of Object.values(productosAgg)) {
+      for (const ped of prod.pedidos) {
+        ped.productos = pedidoProductos[ped.pedidoId] || [];
+      }
     }
 
     // Sort by name

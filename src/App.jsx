@@ -1201,7 +1201,7 @@ export default function VyniaApp() {
                           >
                             <div>
                               <span style={{ fontWeight: 600, color: "#1B1C39" }}>
-                                {(ped.pedidoTitulo || "").replace(/^Pedido\s+/i, "")}
+                                {ped.cliente || (ped.pedidoTitulo || "").replace(/^Pedido\s+/i, "") || "Sin nombre"}
                               </span>
                               {ped.pagado && (
                                 <span style={{
@@ -1209,6 +1209,11 @@ export default function VyniaApp() {
                                   background: "#E8F5E9", color: "#2E7D32", fontWeight: 700,
                                   marginLeft: 6,
                                 }}>PAGADO</span>
+                              )}
+                              {ped.notas && (
+                                <div style={{ fontSize: 11, color: "#A2C2D0", fontStyle: "italic", marginTop: 2 }}>
+                                  {ped.notas}
+                                </div>
                               )}
                             </div>
                             <span style={{ fontWeight: 700, color: "#4F6867" }}>
@@ -1241,9 +1246,14 @@ export default function VyniaApp() {
               maxHeight: "80vh", overflowY: "auto",
             }} onClick={e => e.stopPropagation()}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1B1C39", fontFamily: "'Roboto Condensed', sans-serif" }}>
-                  {(selectedPedido.pedidoTitulo || "").replace(/^Pedido\s+/i, "") || selectedPedido.cliente || "Pedido"}
-                </h3>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1B1C39", fontFamily: "'Roboto Condensed', sans-serif" }}>
+                    {selectedPedido.cliente || (selectedPedido.pedidoTitulo || "").replace(/^Pedido\s+/i, "") || "Pedido"}
+                  </h3>
+                  {selectedPedido.numPedido > 0 && (
+                    <span style={{ fontSize: 11, color: "#A2C2D0" }}>Pedido #{selectedPedido.numPedido}</span>
+                  )}
+                </div>
                 <button onClick={() => setSelectedPedido(null)} style={{
                   border: "none", background: "transparent", cursor: "pointer",
                   fontSize: 20, color: "#A2C2D0", padding: "0 4px",
@@ -1263,11 +1273,11 @@ export default function VyniaApp() {
                   </div>
                 )}
 
-                {selectedPedido.tel && (
+                {(selectedPedido.telefono || selectedPedido.tel) && (
                   <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
                     <I.Phone s={14} />
-                    <a href={`tel:${selectedPedido.tel}`} style={{ color: "#1B1C39", textDecoration: "none" }}>
-                      {selectedPedido.tel}
+                    <a href={`tel:${selectedPedido.telefono || selectedPedido.tel}`} style={{ color: "#1B1C39", textDecoration: "none" }}>
+                      {selectedPedido.telefono || selectedPedido.tel}
                     </a>
                   </div>
                 )}
@@ -1288,21 +1298,29 @@ export default function VyniaApp() {
                   )}
                 </div>
 
+                {/* Full product list for this pedido */}
+                {selectedPedido.productos && selectedPedido.productos.length > 0 && (
+                  <div style={{ background: "#F5F5F5", borderRadius: 10, padding: "10px 14px" }}>
+                    <p style={{ fontSize: 10, color: "#A2C2D0", margin: "0 0 6px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                      Productos del pedido
+                    </p>
+                    {selectedPedido.productos.map((item, i) => (
+                      <div key={i} style={{
+                        display: "flex", justifyContent: "space-between", alignItems: "center",
+                        padding: "5px 0",
+                        borderBottom: i < selectedPedido.productos.length - 1 ? "1px solid #E1F2FC" : "none",
+                        fontSize: 13,
+                      }}>
+                        <span style={{ color: "#1B1C39" }}>{item.nombre}</span>
+                        <span style={{ fontWeight: 700, color: "#4F6867" }}>{item.unidades} ud{item.unidades !== 1 ? "s" : ""}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {selectedPedido.notas && (
                   <div style={{ fontSize: 12, color: "#1B1C39", fontStyle: "italic", padding: "8px 12px", background: "#EFE9E4", borderRadius: 8 }}>
                     {selectedPedido.notas}
-                  </div>
-                )}
-
-                {selectedPedido.unidades && (
-                  <div style={{ fontSize: 13, color: "#4F6867", fontWeight: 600 }}>
-                    Cantidad en este producto: {selectedPedido.unidades} ud{selectedPedido.unidades !== 1 ? "s" : ""}
-                  </div>
-                )}
-
-                {selectedPedido.numPedido > 0 && (
-                  <div style={{ fontSize: 11, color: "#A2C2D0" }}>
-                    N.º Pedido: {selectedPedido.numPedido}
                   </div>
                 )}
               </div>
