@@ -28,23 +28,38 @@ export default async function handler(req, res) {
   return res.status(405).json({ error: "Method not allowed" });
 }
 
+function nextDay(dateStr) {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().split("T")[0];
+}
+
 async function handleGet(req, res) {
   try {
     const filter = req.query.filter || "todos";
+    const fecha = req.query.fecha; // YYYY-MM-DD — filter by delivery date
+
+    const conditions = [];
+
+    // Date filter: if fecha is provided, filter to that specific day
+    if (fecha) {
+      conditions.push({ property: "Fecha entrega", date: { on_or_after: fecha } });
+      conditions.push({ property: "Fecha entrega", date: { before: nextDay(fecha) } });
+    }
+
+    // Status filter
+    if (filter === "pendientes") {
+      conditions.push({ property: "Recogido", checkbox: { equals: false } });
+      conditions.push({ property: "No acude", checkbox: { equals: false } });
+    } else if (filter === "recogidos") {
+      conditions.push({ property: "Recogido", checkbox: { equals: true } });
+    }
 
     let notionFilter = undefined;
-    if (filter === "pendientes") {
-      notionFilter = {
-        and: [
-          { property: "Recogido", checkbox: { equals: false } },
-          { property: "No acude", checkbox: { equals: false } },
-        ],
-      };
-    } else if (filter === "recogidos") {
-      notionFilter = {
-        property: "Recogido",
-        checkbox: { equals: true },
-      };
+    if (conditions.length === 1) {
+      notionFilter = conditions[0];
+    } else if (conditions.length > 1) {
+      notionFilter = { and: conditions };
     }
 
     const sorts = [{ property: "Fecha entrega", direction: "ascending" }];

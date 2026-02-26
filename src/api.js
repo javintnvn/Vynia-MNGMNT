@@ -21,6 +21,11 @@ export const notion = {
     return apiCall("/pedidos?filter=pendientes");
   },
 
+  async loadPedidosByDate(fecha) {
+    const params = fecha ? `?fecha=${fecha}` : "?filter=todos";
+    return apiCall(`/pedidos${params}`);
+  },
+
   async toggleRecogido(pageId, currentValue) {
     return apiCall(`/pedidos/${pageId}`, {
       method: "PATCH",

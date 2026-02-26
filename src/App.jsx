@@ -186,6 +186,7 @@ export default function VyniaApp() {
   // Pedidos data
   const [pedidos, setPedidos] = useState([]);
   const [filtro, setFiltro] = useState("pendientes"); // pendientes | hoy | todos | recogidos
+  const [filtroFecha, setFiltroFecha] = useState(fmt.todayISO()); // null = all dates
   
   // Nuevo pedido form
   const [cliente, setCliente] = useState("");
@@ -216,22 +217,24 @@ export default function VyniaApp() {
   }, []);
 
   // ─── LOAD PEDIDOS ───
-  const loadPedidos = useCallback(async () => {
+  const loadPedidos = useCallback(async (fechaParam) => {
+    const f = fechaParam !== undefined ? fechaParam : filtroFecha;
     if (apiMode === "demo") {
-      setPedidos([
+      const allDemo = [
         { id: "demo-1", nombre: "Pedido María García", cliente: "María García", tel: "600123456", fecha: fmt.todayISO(), hora: "10:30", productos: "2x Cookie pistacho, 1x Brownie", importe: 8.60, recogido: false, pagado: true, notas: "", noAcude: false, incidencia: false },
         { id: "demo-2", nombre: "Pedido Juan López", cliente: "Juan López", tel: "612345678", fecha: fmt.todayISO(), hora: "12:00", productos: "1x Hogaza Miel, 3x Viñacaos", importe: 18.50, recogido: false, pagado: false, notas: "Sin nueces", noAcude: false, incidencia: false },
         { id: "demo-3", nombre: "Pedido Ana Ruiz", cliente: "Ana Ruiz", tel: "654321000", fecha: fmt.tomorrowISO(), hora: "", productos: "1x Tarta de queso, 2x Barra de pan", importe: 32.00, recogido: false, pagado: true, notas: "", noAcude: false, incidencia: false },
         { id: "demo-4", nombre: "Pedido Carlos", cliente: "Carlos Martín", tel: "677888999", fecha: fmt.todayISO(), hora: "09:00", productos: "4x Magdalenas, 2x Bollitos", importe: 9.60, recogido: true, pagado: true, notas: "", noAcude: false, incidencia: false },
         { id: "demo-5", nombre: "Pedido Laura", cliente: "Laura Sánchez", tel: "611222333", fecha: fmt.dayAfterISO(), hora: "11:00", productos: "1x Bizcocho naranja, 1x Granola", importe: 8.80, recogido: false, pagado: false, notas: "Llamar antes", noAcude: false, incidencia: false },
-      ]);
+      ];
+      setPedidos(f ? allDemo.filter(p => (p.fecha || "").startsWith(f)) : allDemo);
       return;
     }
-    
+
     setLoading(true);
     try {
-      const pedidosData = await notion.loadAllPedidos();
-      
+      const pedidosData = await notion.loadPedidosByDate(f);
+
       const mapped = (Array.isArray(pedidosData) ? pedidosData : []).map(p => ({
         id: p.id,
         nombre: p.titulo || "",
@@ -248,15 +251,15 @@ export default function VyniaApp() {
         hora: p.fecha?.includes("T") ? p.fecha.split("T")[1]?.substring(0, 5) : "",
         cliente: p.cliente || (p.titulo || "").replace(/^Pedido\s+/i, ""),
       }));
-      
+
       setPedidos(mapped);
-      notify("ok", `${mapped.length} pedidos cargados de Notion`);
+      notify("ok", `${mapped.length} pedido${mapped.length !== 1 ? "s" : ""} cargado${mapped.length !== 1 ? "s" : ""}`);
     } catch (err) {
       notify("err", "Error cargando: " + (err.message || "desconocido").substring(0, 100));
     } finally {
       setLoading(false);
     }
-  }, [apiMode, notify]);
+  }, [apiMode, filtroFecha, notify]);
 
   useEffect(() => { loadPedidos(); }, [apiMode]);
 
@@ -414,10 +417,9 @@ export default function VyniaApp() {
   const totalPedido = lineas.reduce((s, l) => s + l.cantidad * l.precio, 0);
   const totalItems = lineas.reduce((s, l) => s + l.cantidad, 0);
 
-  // ─── FILTERED PEDIDOS ───
+  // ─── FILTERED PEDIDOS (date filtering done at API level) ───
   const pedidosFiltrados = pedidos.filter(p => {
     if (filtro === "pendientes") return !p.recogido && !p.noAcude;
-    if (filtro === "hoy") return fmt.isToday(p.fecha) && !p.recogido;
     if (filtro === "recogidos") return p.recogido;
     return true;
   });
@@ -435,10 +437,10 @@ export default function VyniaApp() {
     ? CATALOGO.filter(p => p.nombre.toLowerCase().includes(searchProd.toLowerCase()))
     : [];
 
-  // ─── STATS ───
-  const statsHoy = pedidos.filter(p => fmt.isToday(p.fecha) && !p.recogido && !p.noAcude).length;
+  // ─── STATS (from currently loaded pedidos) ───
+  const statsTotal = pedidos.length;
   const statsPendientes = pedidos.filter(p => !p.recogido && !p.noAcude).length;
-  const statsRecogidosHoy = pedidos.filter(p => fmt.isToday(p.fecha) && p.recogido).length;
+  const statsRecogidos = pedidos.filter(p => p.recogido).length;
 
   // ═══════════════════════════════════════════════════════════
   //  RENDER
@@ -517,9 +519,9 @@ export default function VyniaApp() {
           scrollbarWidth: "none", msOverflowStyle: "none",
         }}>
           {[
-            { label: "Hoy", value: statsHoy, color: "#4F6867", bg: "#E1F2FC", filter: "hoy" },
+            { label: "Total", value: statsTotal, color: "#4F6867", bg: "#E1F2FC", filter: "todos" },
             { label: "Pendientes", value: statsPendientes, color: "#1B1C39", bg: "#E1F2FC", filter: "pendientes" },
-            { label: "Recogidos", value: statsRecogidosHoy, color: "#4F6867", bg: "#E1F2FC", filter: "recogidos" },
+            { label: "Recogidos", value: statsRecogidos, color: "#4F6867", bg: "#E1F2FC", filter: "recogidos" },
           ].map(s => (
             <button key={s.label} title={`Filtrar por ${s.label.toLowerCase()}`} onClick={() => { setTab("pedidos"); setFiltro(s.filter); }}
               style={{
@@ -604,11 +606,43 @@ export default function VyniaApp() {
         ══════════════════════════════════════════ */}
         {tab === "pedidos" && (
           <div style={{ paddingTop: 12 }}>
-            {/* Filter pills */}
+            {/* Date selector */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+              {[
+                { label: "Hoy", val: fmt.todayISO() },
+                { label: "Mañana", val: fmt.tomorrowISO() },
+                { label: "Pasado", val: fmt.dayAfterISO() },
+                { label: "Todos", val: null },
+              ].map(d => (
+                <button key={d.label} title={`Ver pedidos de ${d.label.toLowerCase()}`}
+                  onClick={() => { setFiltroFecha(d.val); loadPedidos(d.val); }}
+                  style={{
+                    flex: 1, padding: "10px 0", borderRadius: 10,
+                    border: filtroFecha === d.val ? "2px solid #4F6867" : "1.5px solid #A2C2D0",
+                    background: filtroFecha === d.val ? "#E1F2FC" : "#EFE9E4",
+                    color: filtroFecha === d.val ? "#1B1C39" : "#4F6867",
+                    fontWeight: filtroFecha === d.val ? 700 : 500,
+                    fontSize: 13, cursor: "pointer", transition: "all 0.15s",
+                    fontFamily: "'Roboto Condensed', sans-serif",
+                  }}>
+                  {d.label}
+                </button>
+              ))}
+              <input type="date" value={filtroFecha || ""}
+                onChange={e => { const v = e.target.value || null; setFiltroFecha(v); loadPedidos(v); }}
+                title="Seleccionar fecha concreta"
+                style={{
+                  padding: "8px 10px", borderRadius: 10,
+                  border: "1.5px solid #A2C2D0", fontSize: 13,
+                  background: "#EFE9E4", color: "#1B1C39",
+                  outline: "none", minWidth: 0, flex: 0.8,
+                }} />
+            </div>
+
+            {/* Status filter pills */}
             <div id="filter-pills" style={{ display: "flex", gap: 6, marginBottom: 14 }}>
               {[
                 { key: "pendientes", label: "Pendientes" },
-                { key: "hoy", label: "Hoy" },
                 { key: "recogidos", label: "Recogidos" },
                 { key: "todos", label: "Todos" },
               ].map(f => (
