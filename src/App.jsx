@@ -449,7 +449,7 @@ export default function VyniaApp() {
           </div>
           
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <button onClick={() => {
+            <button title={apiMode === "live" ? "Cambiar a modo demo (sin conexión)" : "Cambiar a modo live (Notion)"} onClick={() => {
               setApiMode(m => m === "demo" ? "live" : "demo");
             }} style={{
               padding: "5px 10px", borderRadius: 6, fontSize: 10,
@@ -461,14 +461,14 @@ export default function VyniaApp() {
             }}>
               {apiMode === "live" ? "● LIVE" : "◌ DEMO"}
             </button>
-            <button onClick={() => window.print()} id="btn-print" style={{
+            <button title="Imprimir lista de pedidos" onClick={() => window.print()} id="btn-print" style={{
               width: 34, height: 34, borderRadius: 9, border: "1px solid #A2C2D0",
               background: "#fff", cursor: "pointer", display: "flex",
               alignItems: "center", justifyContent: "center", color: "#4F6867",
             }}>
               <I.Printer />
             </button>
-            <button onClick={loadPedidos} style={{
+            <button title="Recargar pedidos" onClick={loadPedidos} style={{
               width: 34, height: 34, borderRadius: 9, border: "1px solid #A2C2D0",
               background: "#fff", cursor: "pointer", display: "flex",
               alignItems: "center", justifyContent: "center", color: "#4F6867",
@@ -488,7 +488,7 @@ export default function VyniaApp() {
             { label: "Pendientes", value: statsPendientes, color: "#1B1C39", bg: "#E1F2FC", filter: "pendientes" },
             { label: "Recogidos", value: statsRecogidosHoy, color: "#4F6867", bg: "#E1F2FC", filter: "recogidos" },
           ].map(s => (
-            <button key={s.label} onClick={() => { setTab("pedidos"); setFiltro(s.filter); }}
+            <button key={s.label} title={`Filtrar por ${s.label.toLowerCase()}`} onClick={() => { setTab("pedidos"); setFiltro(s.filter); }}
               style={{
                 flex: 1, padding: "10px 8px", borderRadius: 10,
                 border: filtro === s.filter && tab === "pedidos" ? `1.5px solid ${s.color}` : "1px solid #A2C2D0",
@@ -579,7 +579,7 @@ export default function VyniaApp() {
                 { key: "recogidos", label: "Recogidos" },
                 { key: "todos", label: "Todos" },
               ].map(f => (
-                <button key={f.key} onClick={() => setFiltro(f.key)}
+                <button key={f.key} title={`Filtrar: ${f.label}`} onClick={() => setFiltro(f.key)}
                   style={{
                     padding: "6px 14px", borderRadius: 20, fontSize: 12,
                     border: filtro === f.key ? "1.5px solid #4F6867" : "1px solid #A2C2D0",
@@ -725,7 +725,7 @@ export default function VyniaApp() {
                         display: "flex", gap: 8, marginTop: 10,
                         borderTop: "1px solid #E1F2FC", paddingTop: 10,
                       }}>
-                        <button onClick={() => toggleRecogido(p)}
+                        <button title={p.recogido ? "Desmarcar como recogido" : "Marcar como recogido"} onClick={() => toggleRecogido(p)}
                           style={{
                             flex: 1, padding: "9px 0", borderRadius: 9,
                             border: "none", fontSize: 12, fontWeight: 700,
@@ -738,9 +738,9 @@ export default function VyniaApp() {
                           }}>
                           <I.Check s={14} /> {p.recogido ? "Desmarcar" : "Recogido"}
                         </button>
-                        
+
                         {!p.recogido && (
-                          <button onClick={() => toggleNoAcude(p)}
+                          <button title={p.noAcude ? "Marcar que sí acude" : "Marcar que no acude"} onClick={() => toggleNoAcude(p)}
                             style={{
                               padding: "9px 14px", borderRadius: 9,
                               border: `1px solid ${p.noAcude ? "#EF9A9A" : "#A2C2D0"}`,
@@ -751,9 +751,9 @@ export default function VyniaApp() {
                             {p.noAcude ? "Sí acude" : "No acude"}
                           </button>
                         )}
-                        
+
                         {p.tel && (
-                          <a href={`tel:${p.tel}`} style={{
+                          <a title={`Llamar a ${p.tel}`} href={`tel:${p.tel}`} style={{
                             width: 38, height: 38, borderRadius: 9,
                             border: "1px solid #A2C2D0", background: "transparent",
                             display: "flex", alignItems: "center", justifyContent: "center",
@@ -815,7 +815,7 @@ export default function VyniaApp() {
                   { label: "Mañana", val: fmt.tomorrowISO() },
                   { label: "Pasado", val: fmt.dayAfterISO() },
                 ].map(d => (
-                  <button key={d.label} onClick={() => setFecha(d.val)}
+                  <button key={d.label} title={`Fecha de entrega: ${d.label.toLowerCase()}`} onClick={() => setFecha(d.val)}
                     style={{
                       flex: 1, padding: "10px 0", borderRadius: 10,
                       border: fecha === d.val ? "2px solid #4F6867" : "1.5px solid #A2C2D0",
@@ -949,7 +949,7 @@ export default function VyniaApp() {
                         display: "flex", alignItems: "center",
                         background: "#E1F2FC", borderRadius: 10, overflow: "hidden",
                       }}>
-                        <button onClick={() => updateQty(l.nombre, -1)}
+                        <button title="Quitar una unidad" onClick={() => updateQty(l.nombre, -1)}
                           style={{
                             width: 34, height: 34, border: "none", background: "transparent",
                             cursor: "pointer", display: "flex", alignItems: "center",
@@ -960,7 +960,7 @@ export default function VyniaApp() {
                           fontWeight: 800, color: "#1B1C39",
                           fontFamily: "'Roboto Condensed', sans-serif",
                         }}>{l.cantidad}</span>
-                        <button onClick={() => updateQty(l.nombre, 1)}
+                        <button title="Añadir una unidad" onClick={() => updateQty(l.nombre, 1)}
                           style={{
                             width: 34, height: 34, border: "none", background: "transparent",
                             cursor: "pointer", display: "flex", alignItems: "center",
@@ -973,7 +973,7 @@ export default function VyniaApp() {
                         fontSize: 14, fontWeight: 700, color: "#4F6867",
                       }}>{(l.cantidad * l.precio).toFixed(2)}€</span>
                       
-                      <button onClick={() => setLineas(ls => ls.filter(x => x.nombre !== l.nombre))}
+                      <button title="Eliminar producto del pedido" onClick={() => setLineas(ls => ls.filter(x => x.nombre !== l.nombre))}
                         style={{
                           width: 30, height: 30, borderRadius: 8, border: "none",
                           background: "transparent", cursor: "pointer",
@@ -1020,7 +1020,7 @@ export default function VyniaApp() {
                 </div>
                 <div style={{ textAlign: "center", paddingTop: 4 }}>
                   <label style={{ ...labelStyle, marginBottom: 8, display: "block" }}>Pagado</label>
-                  <button onClick={() => setPagado(!pagado)}
+                  <button title={pagado ? "Desmarcar como pagado" : "Marcar como pagado al reservar"} onClick={() => setPagado(!pagado)}
                     style={{
                       width: 52, height: 52, borderRadius: 14,
                       border: pagado ? "2.5px solid #4CAF50" : "2px solid #A2C2D0",
@@ -1037,7 +1037,7 @@ export default function VyniaApp() {
             </section>
 
             {/* ── Submit ── */}
-            <button onClick={crearPedido}
+            <button title="Crear nuevo pedido en Notion" onClick={crearPedido}
               disabled={!cliente.trim() || !fecha || lineas.length === 0}
               style={{
                 width: "100%", padding: "16px",
@@ -1088,7 +1088,7 @@ export default function VyniaApp() {
                 { label: "Mañana", val: fmt.tomorrowISO() },
                 { label: "Pasado", val: fmt.dayAfterISO() },
               ].map(d => (
-                <button key={d.label} onClick={() => { setProduccionFecha(d.val); setExpandedProduct(null); loadProduccion(d.val); }}
+                <button key={d.label} title={`Ver producción de ${d.label.toLowerCase()}`} onClick={() => { setProduccionFecha(d.val); setExpandedProduct(null); loadProduccion(d.val); }}
                   style={{
                     flex: 1, padding: "10px 0", borderRadius: 10,
                     border: produccionFecha === d.val ? "2px solid #4F6867" : "1.5px solid #A2C2D0",
@@ -1118,7 +1118,7 @@ export default function VyniaApp() {
               }}>
                 <I.Store s={40} />
                 <p style={{ marginTop: 12, fontSize: 14 }}>No hay producción para este día</p>
-                <button onClick={() => loadProduccion()} style={{
+                <button title="Cargar datos de producción" onClick={() => loadProduccion()} style={{
                   marginTop: 8, padding: "8px 16px", borderRadius: 8,
                   border: "1px solid #A2C2D0", background: "#fff",
                   cursor: "pointer", fontSize: 12, color: "#4F6867", fontWeight: 600,
@@ -1147,7 +1147,7 @@ export default function VyniaApp() {
                     boxShadow: "0 1px 4px rgba(60,50,30,0.04)",
                   }}>
                     {/* Product row */}
-                    <button onClick={() => setExpandedProduct(expandedProduct === prod.nombre ? null : prod.nombre)}
+                    <button title={expandedProduct === prod.nombre ? "Contraer producto" : "Ver pedidos de este producto"} onClick={() => setExpandedProduct(expandedProduct === prod.nombre ? null : prod.nombre)}
                       style={{
                         width: "100%", padding: "14px 16px",
                         border: "none", background: "transparent",
@@ -1187,7 +1187,7 @@ export default function VyniaApp() {
                           Pedidos con {prod.nombre}:
                         </p>
                         {prod.pedidos.map((ped, i) => (
-                          <button key={ped.pedidoId + "-" + i} onClick={() => setSelectedPedido(ped)}
+                          <button title="Ver detalle del pedido" key={ped.pedidoId + "-" + i} onClick={() => setSelectedPedido(ped)}
                             style={{
                               width: "100%", padding: "10px 12px",
                               border: "none",
@@ -1254,7 +1254,7 @@ export default function VyniaApp() {
                     <span style={{ fontSize: 11, color: "#A2C2D0" }}>Pedido #{selectedPedido.numPedido}</span>
                   )}
                 </div>
-                <button onClick={() => setSelectedPedido(null)} style={{
+                <button title="Cerrar detalle" onClick={() => setSelectedPedido(null)} style={{
                   border: "none", background: "transparent", cursor: "pointer",
                   fontSize: 20, color: "#A2C2D0", padding: "0 4px",
                 }}>×</button>
@@ -1340,11 +1340,11 @@ export default function VyniaApp() {
         zIndex: 60,
       }}>
         {[
-          { key: "pedidos", icon: <I.List s={22} />, label: "Pedidos" },
-          { key: "nuevo", icon: <I.Plus s={22} />, label: "Nuevo" },
-          { key: "produccion", icon: <I.Store s={22} />, label: "Producción" },
+          { key: "pedidos", icon: <I.List s={22} />, label: "Pedidos", tip: "Ver lista de pedidos" },
+          { key: "nuevo", icon: <I.Plus s={22} />, label: "Nuevo", tip: "Crear nuevo pedido" },
+          { key: "produccion", icon: <I.Store s={22} />, label: "Producción", tip: "Ver producción diaria" },
         ].map(t => (
-          <button key={t.key} onClick={() => { setTab(t.key); if (t.key === "nuevo") resetForm(); if (t.key === "produccion") loadProduccion(); }}
+          <button title={t.tip} key={t.key} onClick={() => { setTab(t.key); if (t.key === "nuevo") resetForm(); if (t.key === "produccion") loadProduccion(); }}
             style={{
               flex: 1, padding: "6px 0", border: "none",
               background: "transparent", cursor: "pointer",
