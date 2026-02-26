@@ -987,8 +987,10 @@ export default function VyniaApp() {
               ))}
             </div>
 
-            {/* Search bar */}
-            <div style={{ position: "relative", marginBottom: isDesktop ? 0 : 14, flex: isDesktop ? 1 : undefined, minWidth: isDesktop ? 200 : undefined }}>
+            </div>{/* end desktop filters row */}
+
+            {/* Search bar — always below filters */}
+            <div style={{ position: "relative", marginBottom: 14 }}>
               <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#A2C2D0", pointerEvents: "none" }}>
                 <I.Search s={16} />
               </div>
@@ -1002,7 +1004,6 @@ export default function VyniaApp() {
                   fontFamily: "'Roboto Condensed', sans-serif",
                 }} />
             </div>
-            </div>{/* end desktop filters row */}
 
             {/* Orders grouped by date */}
             {pedidosFiltrados.length === 0 ? (
@@ -1648,11 +1649,7 @@ export default function VyniaApp() {
                     </div>
                   </div>
 
-                  <div className="grid-produccion" style={{
-                    display: "grid",
-                    gridTemplateColumns: isDesktop ? "repeat(2, 1fr)" : "1fr",
-                    gap: 8,
-                  }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {prodView.map(prod => {
                     if (prod.udsFiltradas === 0 && ocultarRecogidos) return null;
                     return (
@@ -1754,7 +1751,7 @@ export default function VyniaApp() {
                     </div>
                     );
                   })}
-                  </div>{/* end grid-produccion */}
+                  </div>
                 </div>
               );
             })()}
@@ -2104,7 +2101,7 @@ export default function VyniaApp() {
           --vynia-radius: 14px;
           --vynia-transition: 200ms ease;
         }
-        .grid-cards, .grid-produccion {
+        .grid-cards {
           transition: grid-template-columns 0.3s ease;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
