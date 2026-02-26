@@ -226,6 +226,8 @@ export default function VyniaApp() {
   const [expandedProduct, setExpandedProduct] = useState(null);
   const [selectedPedido, setSelectedPedido] = useState(null);
   const [phoneMenu, setPhoneMenu] = useState(null); // { tel, x, y }
+  const [confirmCancel, setConfirmCancel] = useState(null); // pedidoId
+  const [editingFecha, setEditingFecha] = useState(null); // { pedidoId, newFecha }
 
   // Refs
   const toastTimer = useRef(null);
@@ -354,6 +356,51 @@ export default function VyniaApp() {
       await notion.toggleNoAcude(pedido.id, pedido.noAcude);
       setPedidos(ps => ps.map(p => p.id === pedido.id ? { ...p, noAcude: !p.noAcude } : p));
       notify("ok", "Actualizado");
+    } catch (err) {
+      notify("err", err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── CANCEL PEDIDO ───
+  const cancelarPedido = async (pedido) => {
+    if (apiMode === "demo") {
+      setPedidos(ps => ps.filter(p => p.id !== pedido.id));
+      setSelectedPedido(null);
+      setConfirmCancel(null);
+      notify("ok", "Pedido cancelado");
+      return;
+    }
+    setLoading(true);
+    try {
+      await notion.archivarPedido(pedido.id);
+      setPedidos(ps => ps.filter(p => p.id !== pedido.id));
+      setSelectedPedido(null);
+      setConfirmCancel(null);
+      notify("ok", "Pedido cancelado");
+    } catch (err) {
+      notify("err", err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── CHANGE DELIVERY DATE ───
+  const cambiarFechaPedido = async (pedido, newFecha) => {
+    if (!newFecha) return;
+    if (apiMode === "demo") {
+      setPedidos(ps => ps.map(p => p.id === pedido.id ? { ...p, fecha: newFecha, hora: "" } : p));
+      setEditingFecha(null);
+      notify("ok", "Fecha actualizada");
+      return;
+    }
+    setLoading(true);
+    try {
+      await notion.updatePage(pedido.id, { "Fecha entrega": { date: { start: newFecha } } });
+      setPedidos(ps => ps.map(p => p.id === pedido.id ? { ...p, fecha: newFecha, hora: "" } : p));
+      setEditingFecha(null);
+      notify("ok", "Fecha actualizada");
     } catch (err) {
       notify("err", err.message);
     } finally {
@@ -1489,6 +1536,50 @@ export default function VyniaApp() {
                   <div style={{ fontSize: 12, color: "#1B1C39", fontStyle: "italic", padding: "8px 12px", background: "#EFE9E4", borderRadius: 8 }}>
                     {selectedPedido.notas}
                   </div>
+                )}
+
+                {/* ── Change date ── */}
+                {editingFecha?.pedidoId === selectedPedido.id ? (
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input type="date" lang="es" value={editingFecha.newFecha}
+                      onChange={e => setEditingFecha(ef => ({ ...ef, newFecha: e.target.value }))}
+                      style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1.5px solid #A2C2D0", fontSize: 13, fontFamily: "'Roboto Condensed', sans-serif" }} />
+                    <button onClick={() => cambiarFechaPedido(selectedPedido, editingFecha.newFecha)}
+                      style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #4F6867, #3D5655)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                      Guardar
+                    </button>
+                    <button onClick={() => setEditingFecha(null)}
+                      style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #A2C2D0", background: "transparent", color: "#A2C2D0", fontSize: 12, cursor: "pointer" }}>
+                      ×
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={() => setEditingFecha({ pedidoId: selectedPedido.id, newFecha: (selectedPedido.fecha || "").split("T")[0] || fmt.todayISO() })}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 9, border: "1.5px solid #A2C2D0", background: "transparent", color: "#4F6867", fontSize: 12, fontWeight: 600, cursor: "pointer", width: "100%" }}>
+                    <I.Cal s={13} /> Cambiar fecha de entrega
+                  </button>
+                )}
+
+                {/* ── Cancel pedido ── */}
+                {confirmCancel === selectedPedido.id ? (
+                  <div style={{ background: "#FDE8E5", borderRadius: 9, padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 13, color: "#C62828", fontWeight: 600 }}>¿Cancelar este pedido?</span>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={() => cancelarPedido(selectedPedido)}
+                        style={{ padding: "6px 14px", borderRadius: 7, border: "none", background: "#C62828", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                        Sí, cancelar
+                      </button>
+                      <button onClick={() => setConfirmCancel(null)}
+                        style={{ padding: "6px 10px", borderRadius: 7, border: "1px solid #C62828", background: "transparent", color: "#C62828", fontSize: 12, cursor: "pointer" }}>
+                        No
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={() => setConfirmCancel(selectedPedido.id)}
+                    style={{ padding: "9px 14px", borderRadius: 9, border: "1.5px solid #EF9A9A", background: "transparent", color: "#C62828", fontSize: 12, fontWeight: 600, cursor: "pointer", width: "100%" }}>
+                    Cancelar pedido
+                  </button>
                 )}
               </div>
             </div>

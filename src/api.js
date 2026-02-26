@@ -55,6 +55,13 @@ export const notion = {
     });
   },
 
+  async archivarPedido(pageId) {
+    return apiCall(`/pedidos/${pageId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ archived: true }),
+    });
+  },
+
   async searchClientes(q) {
     return apiCall(`/clientes?q=${encodeURIComponent(q)}`);
   },

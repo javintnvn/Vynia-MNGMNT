@@ -8,17 +8,17 @@ export default async function handler(req, res) {
   }
 
   const { id } = req.query;
-  const { properties } = req.body;
+  const { properties, archived } = req.body;
 
-  if (!id || !properties) {
+  if (!id || (!properties && archived === undefined)) {
     return res.status(400).json({ error: "Missing id or properties" });
   }
 
   try {
-    await notion.pages.update({
-      page_id: id,
-      properties,
-    });
+    const update = { page_id: id };
+    if (properties) update.properties = properties;
+    if (archived !== undefined) update.archived = archived;
+    await notion.pages.update(update);
 
     return res.status(200).json({ ok: true });
   } catch (error) {
