@@ -204,6 +204,7 @@ export default function VyniaApp() {
   const [produccionFecha, setProduccionFecha] = useState(fmt.todayISO());
   const [expandedProduct, setExpandedProduct] = useState(null);
   const [selectedPedido, setSelectedPedido] = useState(null);
+  const [phoneMenu, setPhoneMenu] = useState(null); // { tel, x, y }
 
   // Refs
   const toastTimer = useRef(null);
@@ -336,6 +337,26 @@ export default function VyniaApp() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ─── PHONE MENU (call / WhatsApp) ───
+  const openPhoneMenu = (tel, e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setPhoneMenu({ tel, x: rect.left + rect.width / 2, y: rect.bottom + 4 });
+  };
+  const waLink = (tel) => {
+    const clean = (tel || "").replace(/[\s\-().]/g, "");
+    const num = clean.startsWith("+") ? clean.slice(1) : clean.startsWith("34") ? clean : `34${clean}`;
+    return `https://wa.me/${num}`;
+  };
+  const parseProductsStr = (str) => {
+    if (!str || typeof str !== "string") return [];
+    return str.split(",").map(s => {
+      const m = s.trim().match(/^(\d+)x\s+(.+)$/);
+      return m ? { nombre: m[2].trim(), unidades: parseInt(m[1], 10) } : null;
+    }).filter(Boolean);
   };
 
   // ─── CREATE ORDER ───
@@ -710,8 +731,13 @@ export default function VyniaApp() {
                       opacity: p.recogido ? 0.65 : 1,
                       transition: "all 0.2s",
                     }}>
-                      {/* Top row: name + time + amount */}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      {/* Top row: name + time + amount (clickable for detail) */}
+                      <div onClick={() => setSelectedPedido({
+                        ...p,
+                        pedidoTitulo: p.nombre,
+                        telefono: p.tel,
+                        productos: typeof p.productos === "string" ? parseProductsStr(p.productos) : (Array.isArray(p.productos) ? p.productos : []),
+                      })} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", cursor: "pointer" }}>
                         <div style={{ flex: 1 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             <span style={{
@@ -743,12 +769,12 @@ export default function VyniaApp() {
                               </span>
                             )}
                             {p.tel && (
-                              <a href={`tel:${p.tel}`} style={{
+                              <span onClick={(e) => openPhoneMenu(p.tel, e)} style={{
                                 fontSize: 12, color: "#1B1C39", display: "flex", alignItems: "center", gap: 3,
-                                textDecoration: "none",
+                                cursor: "pointer",
                               }}>
                                 <I.Phone /> {p.tel}
-                              </a>
+                              </span>
                             )}
                           </div>
                           
@@ -819,16 +845,6 @@ export default function VyniaApp() {
                           </button>
                         )}
 
-                        {p.tel && (
-                          <a title={`Llamar a ${p.tel}`} href={`tel:${p.tel}`} style={{
-                            width: 38, height: 38, borderRadius: 9,
-                            border: "1px solid #A2C2D0", background: "transparent",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            color: "#1B1C39", textDecoration: "none",
-                          }}>
-                            <I.Phone s={16} />
-                          </a>
-                        )}
                       </div>
                     </div>
                   ))}
@@ -1343,9 +1359,9 @@ export default function VyniaApp() {
                 {(selectedPedido.telefono || selectedPedido.tel) && (
                   <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
                     <I.Phone s={14} />
-                    <a href={`tel:${selectedPedido.telefono || selectedPedido.tel}`} style={{ color: "#1B1C39", textDecoration: "none" }}>
+                    <span onClick={(e) => openPhoneMenu(selectedPedido.telefono || selectedPedido.tel, e)} style={{ color: "#1B1C39", cursor: "pointer" }}>
                       {selectedPedido.telefono || selectedPedido.tel}
-                    </a>
+                    </span>
                   </div>
                 )}
 
@@ -1391,6 +1407,46 @@ export default function VyniaApp() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════
+            PHONE MENU: LLAMAR / WHATSAPP
+        ══════════════════════════════════════════ */}
+        {phoneMenu && (
+          <div style={{
+            position: "fixed", inset: 0, zIndex: 300,
+          }} onClick={() => setPhoneMenu(null)}>
+            <div style={{
+              position: "absolute",
+              left: Math.min(phoneMenu.x - 90, window.innerWidth - 190),
+              top: phoneMenu.y,
+              background: "#fff", borderRadius: 12, padding: 6,
+              boxShadow: "0 4px 20px rgba(0,0,0,0.18)",
+              display: "flex", flexDirection: "column", gap: 4,
+              minWidth: 180,
+              animation: "tooltipIn 0.15s ease-out",
+            }} onClick={e => e.stopPropagation()}>
+              <a href={`tel:${phoneMenu.tel}`} style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
+                borderRadius: 8, textDecoration: "none", color: "#1B1C39",
+                fontSize: 14, fontWeight: 600,
+              }} onMouseEnter={e => e.currentTarget.style.background = "#E1F2FC"}
+                 onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                 onClick={() => setPhoneMenu(null)}>
+                <I.Phone s={16} /> Llamar
+              </a>
+              <a href={waLink(phoneMenu.tel)} target="_blank" rel="noopener noreferrer" style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
+                borderRadius: 8, textDecoration: "none", color: "#25D366",
+                fontSize: 14, fontWeight: 600,
+              }} onMouseEnter={e => e.currentTarget.style.background = "#E8F5E9"}
+                 onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                 onClick={() => setPhoneMenu(null)}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                WhatsApp
+              </a>
             </div>
           </div>
         )}
