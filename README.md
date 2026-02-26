@@ -9,10 +9,12 @@ Sistema de gestion de pedidos para **Vynia**, conectado a Notion como base de da
 ### Pedidos
 - Lista de pedidos filtrable por fecha (Hoy / Manana / Pasado / Todos + date picker)
 - Filtros de estado: Pendientes, Recogidos, Todos
+- Buscador global de pedidos (por cliente, telefono, notas, numero de pedido) — independiente de filtros
 - Cards con nombre de cliente, hora entrega, telefono, productos, notas, importe
-- Click en pedido abre modal con detalle completo
+- Click en pedido abre modal con detalle completo + productos cargados desde Registros
 - Click en telefono ofrece Llamar o enviar WhatsApp
 - Toggle de recogido y no acude
+- Cancelar pedido (archiva en Notion) y cambiar fecha de entrega desde el modal
 - Badges: PAGADO, INCIDENCIA
 - Stats bar con contadores (total, pendientes, recogidos)
 
@@ -25,9 +27,12 @@ Sistema de gestion de pedidos para **Vynia**, conectado a Notion como base de da
 
 ### Produccion
 - Vista agregada de productos por dia con cantidades totales
+- Toggle Pendiente / Todo el dia: discrimina pedidos recogidos de la produccion pendiente
+- Muestra unidades pendientes vs recogidas (con tachado) por producto y en resumen global
 - Selector de fecha (presets + datepicker)
-- Click en producto expande los pedidos que lo contienen
+- Click en producto expande los pedidos que lo contienen (recogidos aparecen tachados con badge RECOGIDO)
 - Click en pedido abre modal con detalle completo (cliente, telefono, fecha, productos, badges, notas)
+- Precarga automatica al iniciar la app para carga instantanea
 
 ## Stack
 
@@ -45,9 +50,9 @@ Vynia-MNGMNT/
 ├── api/                    # Vercel Serverless Functions
 │   ├── pedidos.js          # GET (listar con filtro fecha/estado) + POST (crear pedido)
 │   ├── pedidos/[id].js     # PATCH (toggle recogido, no acude, etc.)
-│   ├── clientes.js         # POST (buscar o crear cliente)
-│   ├── registros.js        # POST (crear linea de pedido)
-│   └── produccion.js       # GET (produccion diaria agregada con clientes)
+│   ├── clientes.js         # GET (buscar) + POST (buscar o crear cliente)
+│   ├── registros.js        # GET (productos de un pedido) + POST (crear linea de pedido)
+│   └── produccion.js       # GET (produccion diaria agregada con clientes, incluye recogidos)
 ├── src/
 │   ├── App.jsx             # Componente principal (toda la UI, ~1500 lineas)
 │   └── api.js              # Cliente API frontend (wrapper fetch)
@@ -74,13 +79,17 @@ Vynia-MNGMNT/
 - Devuelve `{ id }` del pedido creado
 
 ### PATCH /api/pedidos/:id
-- Body: `{ properties: { ... } }` — propiedades a actualizar
-- Usado para toggle recogido, no acude, etc.
+- Body: `{ properties: { ... }, archived?: boolean }` — propiedades a actualizar o archivar
+- Usado para toggle recogido, no acude, cambiar fecha, cancelar pedido (archived)
 
 ### POST /api/clientes
 - Body: `{ nombre, telefono? }`
 - Busca cliente por nombre exacto. Si no existe, lo crea
 - Devuelve `{ id, created: boolean }`
+
+### GET /api/registros
+- Query params: `pedidoId=<notion_page_id>`
+- Devuelve productos de un pedido: `[{ nombre, unidades }]`
 
 ### POST /api/registros
 - Body: `{ pedidoPageId, productoNombre, cantidad }`
@@ -88,8 +97,8 @@ Vynia-MNGMNT/
 
 ### GET /api/produccion
 - Query params: `fecha=YYYY-MM-DD`
-- Filtra pedidos pendientes del dia, consulta registros asociados
-- Agrega productos con cantidades totales
+- Filtra pedidos del dia (incluye recogidos, excluye no-acude), consulta registros asociados
+- Agrega productos con cantidades totales. Incluye flag `recogido` por pedido para discriminar en frontend
 - Resuelve nombres de clientes
 - Devuelve: `{ productos: [{ nombre, totalUnidades, pedidos: [...] }] }`
 
