@@ -320,7 +320,7 @@ export default function VyniaApp() {
       // Enrich pedidos with importe in background (progressive per batch)
       if (mapped.length > 0) {
         const priceMap = {};
-        CATALOGO.forEach(c => { priceMap[c.nombre] = c.precio; });
+        CATALOGO.forEach(c => { priceMap[c.nombre.toLowerCase().trim()] = c.precio; });
         (async () => {
           for (let i = 0; i < mapped.length; i += 5) {
             const batchUpdates = {};
@@ -328,7 +328,7 @@ export default function VyniaApp() {
               try {
                 const prods = await notion.loadRegistros(ped.id);
                 if (!Array.isArray(prods)) return;
-                const imp = prods.reduce((s, pr) => s + (pr.unidades || 0) * (priceMap[pr.nombre] || 0), 0);
+                const imp = prods.reduce((s, pr) => s + (pr.unidades || 0) * (priceMap[(pr.nombre || "").toLowerCase().trim()] || 0), 0);
                 const str = prods.map(pr => `${pr.unidades}x ${pr.nombre}`).join(", ");
                 batchUpdates[ped.id] = { importe: imp, productos: str };
               } catch { /* ignore */ }
@@ -1069,7 +1069,7 @@ export default function VyniaApp() {
                             fontFamily: "'Roboto Condensed', sans-serif",
                             color: p.recogido ? "#4F6867" : "#4F6867",
                           }}>
-                            {typeof p.importe === "number" ? `${p.importe.toFixed(2)}€` : p.importe || "—"}
+                            {typeof p.importe === "number" && p.importe > 0 ? `${p.importe.toFixed(2)}€` : "—"}
                           </span>
                         </div>
                       </div>
@@ -1824,7 +1824,7 @@ export default function VyniaApp() {
                     )}
                     <button onClick={() => {
                       const initial = (selectedPedido.productos || []).map(p => {
-                        const cat = CATALOGO.find(c => c.nombre === p.nombre);
+                        const cat = CATALOGO.find(c => c.nombre.toLowerCase().trim() === (p.nombre || "").toLowerCase().trim());
                         return { nombre: p.nombre, cantidad: p.unidades || p.cantidad || 1, precio: cat?.precio || 0, cat: cat?.cat || "" };
                       });
                       setEditLineas(initial);
