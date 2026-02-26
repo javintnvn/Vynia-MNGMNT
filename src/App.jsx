@@ -317,24 +317,24 @@ export default function VyniaApp() {
 
       setPedidos(mapped);
       notify("ok", `${mapped.length} pedido${mapped.length !== 1 ? "s" : ""} cargado${mapped.length !== 1 ? "s" : ""}`);
-      // Enrich pedidos with importe in background
+      // Enrich pedidos with importe in background (progressive per batch)
       if (mapped.length > 0) {
         const priceMap = {};
         CATALOGO.forEach(c => { priceMap[c.nombre] = c.precio; });
         (async () => {
-          const updates = {};
           for (let i = 0; i < mapped.length; i += 5) {
+            const batchUpdates = {};
             await Promise.all(mapped.slice(i, i + 5).map(async (ped) => {
               try {
                 const prods = await notion.loadRegistros(ped.id);
                 if (!Array.isArray(prods)) return;
                 const imp = prods.reduce((s, pr) => s + (pr.unidades || 0) * (priceMap[pr.nombre] || 0), 0);
                 const str = prods.map(pr => `${pr.unidades}x ${pr.nombre}`).join(", ");
-                updates[ped.id] = { importe: imp, productos: str };
+                batchUpdates[ped.id] = { importe: imp, productos: str };
               } catch { /* ignore */ }
             }));
+            setPedidos(ps => ps.map(p => batchUpdates[p.id] ? { ...p, ...batchUpdates[p.id] } : p));
           }
-          setPedidos(ps => ps.map(p => updates[p.id] ? { ...p, ...updates[p.id] } : p));
         })();
       }
     } catch (err) {
