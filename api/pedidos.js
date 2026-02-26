@@ -63,8 +63,15 @@ async function handleGet(req, res) {
       cursor = response.has_more ? response.next_cursor : undefined;
     } while (cursor);
 
-    const pedidos = allResults.map((page) => {
+    // Build pedido list + collect client IDs to resolve
+    const clientIdsToFetch = new Set();
+    const pedidosRaw = allResults.map((page) => {
       const p = page.properties;
+      const clientRelation = p["Clientes"]?.relation || [];
+      const clientId = clientRelation.length > 0 ? clientRelation[0].id : null;
+      const telRollup = p["Teléfono"]?.rollup?.array || [];
+      const telefono = telRollup.length > 0 ? (telRollup[0].phone_number || "") : "";
+      if (clientId) clientIdsToFetch.add(clientId);
       return {
         id: page.id,
         titulo: extractTitle(p["Pedido"]),
@@ -74,9 +81,28 @@ async function handleGet(req, res) {
         pagado: p["Pagado al reservar"]?.checkbox || false,
         incidencia: p["Incidencia"]?.checkbox || false,
         notas: extractRichText(p["Notas"]),
-        numPedido: p["Nº Pedido"]?.number || 0,
+        numPedido: p["Nº Pedido"]?.unique_id?.number || 0,
+        clienteId: clientId,
+        telefono,
       };
     });
+
+    // Resolve client names in parallel
+    const clientNames = {};
+    await Promise.all(
+      [...clientIdsToFetch].map(async (cid) => {
+        try {
+          const clientPage = await notion.pages.retrieve({ page_id: cid });
+          const titleProp = Object.values(clientPage.properties).find(p => p.type === "title");
+          clientNames[cid] = titleProp ? (titleProp.title || []).map(t => t.plain_text).join("") : "";
+        } catch { clientNames[cid] = ""; }
+      })
+    );
+
+    const pedidos = pedidosRaw.map(ped => ({
+      ...ped,
+      cliente: ped.clienteId ? (clientNames[ped.clienteId] || "") : "",
+    }));
 
     return res.status(200).json(pedidos);
   } catch (error) {

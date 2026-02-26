@@ -149,6 +149,39 @@ export default function VyniaApp() {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState(null);     // { type: "ok"|"err", msg }
   const [apiMode, setApiMode] = useState("live"); // demo | live
+  const [tooltip, setTooltip] = useState(null); // { text, x, y }
+
+  // ─── GLOBAL TOOLTIP (long-press on mobile, hover on desktop) ───
+  useEffect(() => {
+    let timer = null;
+    const show = (text, x, y) => setTooltip({ text, x, y });
+    const hide = () => setTooltip(null);
+
+    const onTouchStart = (e) => {
+      const btn = e.target.closest("[title]");
+      if (!btn) return;
+      const text = btn.getAttribute("title");
+      if (!text) return;
+      const rect = btn.getBoundingClientRect();
+      timer = setTimeout(() => {
+        show(text, rect.left + rect.width / 2, rect.top - 4);
+      }, 400);
+    };
+    const onTouchEnd = () => { clearTimeout(timer); setTimeout(hide, 1500); };
+    const onScroll = () => { clearTimeout(timer); hide(); };
+
+    document.addEventListener("touchstart", onTouchStart, { passive: true });
+    document.addEventListener("touchend", onTouchEnd, { passive: true });
+    document.addEventListener("touchcancel", onTouchEnd, { passive: true });
+    document.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchend", onTouchEnd);
+      document.removeEventListener("touchcancel", onTouchEnd);
+      document.removeEventListener("scroll", onScroll);
+      clearTimeout(timer);
+    };
+  }, []);
   
   // Pedidos data
   const [pedidos, setPedidos] = useState([]);
@@ -213,7 +246,7 @@ export default function VyniaApp() {
         tel: p.telefono || "",
         numPedido: p.numPedido || 0,
         hora: p.fecha?.includes("T") ? p.fecha.split("T")[1]?.substring(0, 5) : "",
-        cliente: (p.titulo || "").replace(/^Pedido\s+/i, ""),
+        cliente: p.cliente || (p.titulo || "").replace(/^Pedido\s+/i, ""),
       }));
       
       setPedidos(mapped);
@@ -1375,12 +1408,44 @@ export default function VyniaApp() {
         ))}
       </nav>
 
+      {/* ════ TOOLTIP (mobile long-press) ════ */}
+      {tooltip && (
+        <div style={{
+          position: "fixed",
+          left: tooltip.x,
+          top: tooltip.y,
+          transform: "translate(-50%, -100%)",
+          background: "#1B1C39",
+          color: "#fff",
+          fontSize: 11,
+          fontWeight: 600,
+          padding: "5px 10px",
+          borderRadius: 6,
+          zIndex: 300,
+          pointerEvents: "none",
+          whiteSpace: "nowrap",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+          animation: "tooltipIn 0.15s ease",
+        }}>
+          {tooltip.text}
+        </div>
+      )}
+
       {/* ════ GLOBAL STYLES ════ */}
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes slideIn {
           from { opacity: 0; transform: translate(-50%, -12px); }
           to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        @keyframes tooltipIn {
+          from { opacity: 0; transform: translate(-50%, -100%) scale(0.9); }
+          to { opacity: 1; transform: translate(-50%, -100%) scale(1); }
+        }
+        /* Desktop: show title via native hover (already works).
+           Hide native tooltip on touch devices to avoid double-showing */
+        @media (hover: none) {
+          [title] { -webkit-touch-callout: none; }
         }
         input:focus, textarea:focus {
           border-color: #4F6867 !important;
