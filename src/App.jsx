@@ -151,12 +151,13 @@ export default function VyniaApp() {
   const [apiMode, setApiMode] = useState("live"); // demo | live
   const [tooltip, setTooltip] = useState(null); // { text, x, y }
 
-  // ─── GLOBAL TOOLTIP (long-press on mobile, hover on desktop) ───
+  // ─── GLOBAL TOOLTIP (long-press on mobile, CSS hover on desktop) ───
   useEffect(() => {
     let timer = null;
     const show = (text, x, y) => setTooltip({ text, x, y });
     const hide = () => setTooltip(null);
 
+    // Mobile: long-press to show tooltip
     const onTouchStart = (e) => {
       const btn = e.target.closest("[title]");
       if (!btn) return;
@@ -170,15 +171,33 @@ export default function VyniaApp() {
     const onTouchEnd = () => { clearTimeout(timer); setTimeout(hide, 1500); };
     const onScroll = () => { clearTimeout(timer); hide(); };
 
+    // Desktop: copy title→data-tip on hover (for CSS ::after tooltip), remove title to prevent native
+    const onMouseOver = (e) => {
+      const el = e.target.closest("[title]");
+      if (!el) return;
+      const t = el.getAttribute("title");
+      if (t) { el.setAttribute("data-tip", t); el.removeAttribute("title"); }
+    };
+    const onMouseOut = (e) => {
+      const el = e.target.closest("[data-tip]");
+      if (!el) return;
+      const t = el.getAttribute("data-tip");
+      if (t) { el.setAttribute("title", t); el.removeAttribute("data-tip"); }
+    };
+
     document.addEventListener("touchstart", onTouchStart, { passive: true });
     document.addEventListener("touchend", onTouchEnd, { passive: true });
     document.addEventListener("touchcancel", onTouchEnd, { passive: true });
     document.addEventListener("scroll", onScroll, { passive: true });
+    document.addEventListener("mouseover", onMouseOver, { passive: true });
+    document.addEventListener("mouseout", onMouseOut, { passive: true });
     return () => {
       document.removeEventListener("touchstart", onTouchStart);
       document.removeEventListener("touchend", onTouchEnd);
       document.removeEventListener("touchcancel", onTouchEnd);
       document.removeEventListener("scroll", onScroll);
+      document.removeEventListener("mouseover", onMouseOver);
+      document.removeEventListener("mouseout", onMouseOut);
       clearTimeout(timer);
     };
   }, []);
@@ -626,7 +645,7 @@ export default function VyniaApp() {
         <div style={{
           position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)",
           padding: "10px 20px", borderRadius: 10, zIndex: 200,
-          background: toast.type === "ok" ? "#2E7D32" : "#C62828",
+          background: toast.type === "ok" ? "#3D5655" : "#C62828",
           color: "#fff", fontSize: 13, fontWeight: 600,
           boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
           animation: "slideIn 0.3s ease",
@@ -680,7 +699,7 @@ export default function VyniaApp() {
                   {d.label}
                 </button>
               ))}
-              <input type="date" value={filtroFecha || ""}
+              <input type="date" lang="es" value={filtroFecha || ""}
                 onChange={e => { const v = e.target.value || null; setFiltroFecha(v); loadPedidos(v); }}
                 title="Seleccionar fecha concreta"
                 style={{
@@ -755,7 +774,7 @@ export default function VyniaApp() {
                     <div key={p.id} className="order-card" style={{
                       background: "#fff",
                       borderRadius: 14,
-                      border: `1px solid ${p.recogido ? "#C8E6C9" : p.noAcude ? "#FFCDD2" : "#A2C2D0"}`,
+                      border: `1px solid ${p.recogido ? "#A2C2D0" : p.noAcude ? "#FFCDD2" : "#A2C2D0"}`,
                       padding: "14px 16px",
                       marginBottom: 8,
                       boxShadow: "0 1px 4px rgba(60,50,30,0.04)",
@@ -773,7 +792,7 @@ export default function VyniaApp() {
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             <span style={{
                               fontSize: 15, fontWeight: 700,
-                              color: p.recogido ? "#7CB342" : "#1B1C39",
+                              color: p.recogido ? "#4F6867" : "#1B1C39",
                               textDecoration: p.recogido ? "line-through" : "none",
                             }}>
                               {p.cliente || p.nombre}
@@ -781,7 +800,7 @@ export default function VyniaApp() {
                             {p.pagado && (
                               <span style={{
                                 fontSize: 9, padding: "2px 6px", borderRadius: 4,
-                                background: "#E8F5E9", color: "#2E7D32", fontWeight: 700,
+                                background: "#E1F2FC", color: "#3D5655", fontWeight: 700,
                               }}>PAGADO</span>
                             )}
                             {p.incidencia && (
@@ -837,7 +856,7 @@ export default function VyniaApp() {
                           <span style={{
                             fontSize: 18, fontWeight: 800,
                             fontFamily: "'Roboto Condensed', sans-serif",
-                            color: p.recogido ? "#7CB342" : "#4F6867",
+                            color: p.recogido ? "#4F6867" : "#4F6867",
                           }}>
                             {typeof p.importe === "number" ? `${p.importe.toFixed(2)}€` : p.importe || "—"}
                           </span>
@@ -855,9 +874,9 @@ export default function VyniaApp() {
                             border: "none", fontSize: 12, fontWeight: 700,
                             cursor: "pointer", display: "flex",
                             alignItems: "center", justifyContent: "center", gap: 6,
-                            background: p.recogido ? "#E8F5E9" : "linear-gradient(135deg, #4CAF50, #388E3C)",
-                            color: p.recogido ? "#2E7D32" : "#fff",
-                            boxShadow: p.recogido ? "none" : "0 2px 8px rgba(76,175,80,0.3)",
+                            background: p.recogido ? "#E1F2FC" : "linear-gradient(135deg, #4F6867, #3D5655)",
+                            color: p.recogido ? "#3D5655" : "#fff",
+                            boxShadow: p.recogido ? "none" : "0 2px 8px rgba(79,104,103,0.3)",
                             transition: "all 0.2s",
                           }}>
                           <I.Check s={14} /> {p.recogido ? "Desmarcar" : "Recogido"}
@@ -978,7 +997,7 @@ export default function VyniaApp() {
                 ))}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
-                <input type="date" value={fecha}
+                <input type="date" lang="es" value={fecha}
                   onChange={e => setFecha(e.target.value)}
                   style={inputStyle} />
                 <input type="time" value={hora}
@@ -1031,7 +1050,7 @@ export default function VyniaApp() {
                       onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                     >
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ color: "#4CAF50", fontWeight: 700, fontSize: 15 }}>+</span>
+                        <span style={{ color: "#4F6867", fontWeight: 700, fontSize: 15 }}>+</span>
                         <span style={{ fontWeight: 500 }}>{p.nombre}</span>
                         <span style={{
                           fontSize: 9, padding: "1px 5px", borderRadius: 3,
@@ -1171,11 +1190,11 @@ export default function VyniaApp() {
                   <button title={pagado ? "Desmarcar como pagado" : "Marcar como pagado al reservar"} onClick={() => setPagado(!pagado)}
                     style={{
                       width: 52, height: 52, borderRadius: 14,
-                      border: pagado ? "2.5px solid #4CAF50" : "2px solid #A2C2D0",
-                      background: pagado ? "#E8F5E9" : "transparent",
+                      border: pagado ? "2.5px solid #4F6867" : "2px solid #A2C2D0",
+                      background: pagado ? "#E1F2FC" : "transparent",
                       cursor: "pointer", display: "flex",
                       alignItems: "center", justifyContent: "center",
-                      color: pagado ? "#2E7D32" : "#A2C2D0",
+                      color: pagado ? "#3D5655" : "#A2C2D0",
                       fontSize: 20, transition: "all 0.2s",
                     }}>
                     {pagado ? <I.Check s={22} /> : "€"}
@@ -1249,7 +1268,7 @@ export default function VyniaApp() {
                   {d.label}
                 </button>
               ))}
-              <input type="date" value={produccionFecha}
+              <input type="date" lang="es" value={produccionFecha}
                 onChange={e => { setProduccionFecha(e.target.value); setExpandedProduct(null); loadProduccion(e.target.value); }}
                 style={{
                   padding: "8px 10px", borderRadius: 10,
@@ -1354,7 +1373,7 @@ export default function VyniaApp() {
                               {ped.pagado && (
                                 <span style={{
                                   fontSize: 9, padding: "1px 5px", borderRadius: 3,
-                                  background: "#E8F5E9", color: "#2E7D32", fontWeight: 700,
+                                  background: "#E1F2FC", color: "#3D5655", fontWeight: 700,
                                   marginLeft: 6,
                                 }}>PAGADO</span>
                               )}
@@ -1433,10 +1452,10 @@ export default function VyniaApp() {
                 {/* Badges */}
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   {selectedPedido.pagado && (
-                    <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: "#E8F5E9", color: "#2E7D32", fontWeight: 700 }}>PAGADO</span>
+                    <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: "#E1F2FC", color: "#3D5655", fontWeight: 700 }}>PAGADO</span>
                   )}
                   {selectedPedido.recogido && (
-                    <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: "#E8F5E9", color: "#2E7D32", fontWeight: 700 }}>RECOGIDO</span>
+                    <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: "#E1F2FC", color: "#3D5655", fontWeight: 700 }}>RECOGIDO</span>
                   )}
                   {selectedPedido.incidencia && (
                     <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: "#FDE8E5", color: "#C62828", fontWeight: 700 }}>INCIDENCIA</span>
@@ -1506,7 +1525,7 @@ export default function VyniaApp() {
                 display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
                 borderRadius: 8, textDecoration: "none", color: "#25D366",
                 fontSize: 14, fontWeight: 600,
-              }} onMouseEnter={e => e.currentTarget.style.background = "#E8F5E9"}
+              }} onMouseEnter={e => e.currentTarget.style.background = "#E1F2FC"}
                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                  onClick={() => setPhoneMenu(null)}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
@@ -1597,8 +1616,29 @@ export default function VyniaApp() {
           from { opacity: 0; transform: translate(-50%, -100%) scale(0.9); }
           to { opacity: 1; transform: translate(-50%, -100%) scale(1); }
         }
-        /* Desktop: show title via native hover (already works).
-           Hide native tooltip on touch devices to avoid double-showing */
+        /* CSS tooltips: instant on hover (desktop), long-press on mobile */
+        @media (hover: hover) {
+          [data-tip] {
+            position: relative;
+          }
+          [data-tip]:hover::after {
+            content: attr(data-tip);
+            position: absolute;
+            bottom: calc(100% + 6px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1B1C39;
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+            z-index: 999;
+            pointer-events: none;
+            animation: tooltipIn 0.12s ease-out;
+          }
+        }
         @media (hover: none) {
           [title] { -webkit-touch-callout: none; }
         }
