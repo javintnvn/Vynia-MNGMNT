@@ -739,7 +739,7 @@ export default function VyniaApp() {
       maxWidth: isDesktop ? 1400 : 960,
       margin: "0 auto",
       position: "relative",
-      paddingBottom: isDesktop ? 24 : 90,
+      paddingBottom: 90,
     }}>
       {/* ════ HEADER ════ */}
       <header style={{
@@ -1508,7 +1508,7 @@ export default function VyniaApp() {
                   ? "#A2C2D0"
                   : "linear-gradient(135deg, #4F6867, #1B1C39)",
                 color: (!cliente.trim() || !fecha || lineas.length === 0)
-                  ? "#A2C2D0" : "#fff",
+                  ? "#fff" : "#fff",
                 fontSize: 16, fontWeight: 700, cursor: "pointer",
                 fontFamily: "'Roboto Condensed', sans-serif",
                 boxShadow: (!cliente.trim() || !fecha || lineas.length === 0)
@@ -2026,15 +2026,12 @@ export default function VyniaApp() {
 
       {/* ════ BOTTOM NAV ════ */}
       <nav style={{
-        position: "fixed", bottom: isDesktop ? 16 : 0, left: "50%", transform: "translateX(-50%)",
-        width: isDesktop ? "auto" : "100%", maxWidth: isDesktop ? 380 : 960,
+        position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)",
+        width: "100%", maxWidth: isDesktop ? 1400 : 960,
         background: "rgba(255,255,255,0.95)",
         backdropFilter: "blur(12px)",
-        borderTop: isDesktop ? "none" : "1px solid #A2C2D0",
-        border: isDesktop ? "1px solid #A2C2D0" : undefined,
-        borderRadius: isDesktop ? 16 : 0,
-        display: "flex", padding: isDesktop ? "8px 24px" : "8px 0 env(safe-area-inset-bottom, 8px)",
-        boxShadow: isDesktop ? "0 4px 24px rgba(0,0,0,0.12)" : "none",
+        borderTop: "1px solid #A2C2D0",
+        display: "flex", padding: "8px 0 env(safe-area-inset-bottom, 8px)",
         zIndex: 60,
       }}>
         {[
@@ -2060,7 +2057,7 @@ export default function VyniaApp() {
                 display: "flex", alignItems: "center", justifyContent: "center",
                 color: tab === "nuevo" ? "#fff" : "#4F6867",
                 boxShadow: tab === "nuevo" ? "0 2px 10px rgba(166,119,38,0.3)" : "none",
-                marginTop: isDesktop ? -14 : -20,
+                marginTop: -20,
                 border: "3px solid #fff",
               }}>
                 {t.icon}
