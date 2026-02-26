@@ -3,8 +3,8 @@
 ## Stack
 - **Frontend**: React 19 + Vite 6
 - **Backend**: Vercel Serverless Functions
-- **Database**: Notion API via `@notionhq/client`
-- **Deploy**: Vercel
+- **Database**: Notion API via `@notionhq/client@2.3.0`
+- **Deploy**: Vercel (proyecto `vynia-mngmnt`, repo `javintnvn/Vynia-MNGMNT`)
 
 ## Estructura
 
@@ -29,6 +29,9 @@ Vynia-MNGMNT/
 
 ## Bases de Datos Notion
 
+Todas dentro de la pagina "Gestiona Tu Obrador" (`1c418b3a-38b1-80ba-8e58-d69cbdaa2228`).
+Integracion: **Frontend Vynia** (debe tener acceso a cada BD individualmente).
+
 | BD | ID | Uso |
 |----|-----|-----|
 | Pedidos | `1c418b3a-38b1-81a1-9f3c-da137557fcf6` | Pedidos de clientes |
@@ -38,11 +41,28 @@ Vynia-MNGMNT/
 
 ## Propiedades Notion importantes
 
-- `"Unidades "` en Registros tiene un **espacio trailing** — no borrar
-- `"No acude"` en Pedidos — nombre exacto con espacio
-- `"Pagado al reservar"` en Pedidos — nombre exacto
-- `"Fecha entrega"` en Pedidos — tipo date, puede incluir hora
-- `"Fecha Creacion"` en Pedidos — fecha de creacion del pedido
+### Pedidos
+- `"Pedido"` — title
+- `"Fecha entrega"` — date, puede incluir hora
+- `"Fecha Creacion"` — date de creacion del pedido (OJO: con tilde)
+- `"Recogido"` — checkbox
+- `"No acude"` — checkbox (nombre exacto con espacio)
+- `"Pagado al reservar"` — checkbox (nombre exacto)
+- `"Incidencia"` — checkbox
+- `"Notas"` — rich_text
+- `"Clientes"` — relation a BD Clientes
+- `"N Pedido"` — number
+
+### Registros
+- `"Nombre"` — title (contiene solo un espacio " ", NO usar para nombre de producto)
+- `"AUX Producto Texto"` — formula (string) — **nombre real del producto**, derivado de la relacion Productos
+- `"Unidades "` — number (**espacio trailing**, no borrar)
+- `"Pedidos"` — relation a BD Pedidos
+- `"Productos"` — relation a BD Productos
+
+### Clientes
+- title — nombre del cliente
+- `"Telefono"` — phone_number
 
 ## Desarrollo local
 
@@ -57,9 +77,16 @@ npx vite            # solo frontend (modo DEMO funciona sin API)
 
 1. **Pedidos** — Lista de pedidos con filtros (pendientes/hoy/recogidos/todos), toggle recogido/no acude
 2. **Nuevo** — Formulario para crear pedido (cliente + fecha + productos del catalogo)
-3. **Produccion** — Vista agregada de productos por dia con drill-down a pedidos
+3. **Produccion** — Vista agregada de productos por dia con drill-down a pedidos y modal de detalle
 
 ## Modos
 
 - **LIVE** — Conecta a Notion API real
 - **DEMO** — Datos locales para testing sin API
+
+## Notas tecnicas
+
+- `@notionhq/client` debe ser v2.x (v5.x elimino `databases.query`)
+- Vercel project name: `vynia-mngmnt` en team `javiers-projects-9e54bc4d`
+- Variable de entorno en Vercel: `NOTION_TOKEN`
+- Git integration: push a `main` autodeploya
