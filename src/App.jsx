@@ -923,86 +923,87 @@ export default function VyniaApp() {
         ══════════════════════════════════════════ */}
         {tab === "pedidos" && (
           <div style={{ paddingTop: 12 }}>
-            {/* Desktop: all filters in one row */}
-            <div style={{
-              display: isDesktop ? "flex" : "block",
-              gap: isDesktop ? 16 : 0,
-              alignItems: "center",
-              marginBottom: isDesktop ? 16 : 0,
-            }}>
-            {/* Date selector */}
-            <div style={{ display: "flex", gap: isDesktop ? 6 : 8, marginBottom: isDesktop ? 0 : 10, flex: isDesktop ? "none" : undefined }}>
+            {/* ── Date selector row ── */}
+            <div style={{ display: "flex", gap: 6, marginBottom: 8, maxWidth: isDesktop ? 600 : undefined }}>
               {[
                 { label: "Hoy", val: fmt.todayISO() },
                 { label: "Mañana", val: fmt.tomorrowISO() },
                 { label: "Pasado", val: fmt.dayAfterISO() },
                 { label: "Todos", val: null },
-              ].map(d => (
+              ].map(d => {
+                const sel = filtroFecha === d.val;
+                return (
                 <button key={d.label} title={`Ver pedidos de ${d.label.toLowerCase()}`}
                   onClick={() => { setFiltroFecha(d.val); loadPedidos(d.val); }}
                   style={{
-                    flex: 1, padding: "10px 0", borderRadius: 10,
-                    border: filtroFecha === d.val ? "2px solid #4F6867" : "1.5px solid #A2C2D0",
-                    background: filtroFecha === d.val ? "#E1F2FC" : "#EFE9E4",
-                    color: filtroFecha === d.val ? "#1B1C39" : "#4F6867",
-                    fontWeight: filtroFecha === d.val ? 700 : 500,
+                    flex: 1, padding: "9px 0", borderRadius: 10,
+                    border: sel ? "2px solid #4F6867" : "1.5px solid #d4cec6",
+                    background: sel ? "#E1F2FC" : "#fff",
+                    color: sel ? "#1B1C39" : "#4F6867",
+                    fontWeight: sel ? 700 : 500,
                     fontSize: 13, cursor: "pointer", transition: "all 0.15s",
                     fontFamily: "'Roboto Condensed', sans-serif",
                   }}>
                   {d.label}
                 </button>
-              ))}
-              <div style={{ flex: 0.8, position: "relative", display: "flex", alignItems: "center" }}>
+                );
+              })}
+              <div style={{ flex: 0.7, position: "relative", display: "flex", alignItems: "center" }}>
                 <div style={{ position: "absolute", left: 9, pointerEvents: "none", zIndex: 1, color: "#4F6867", display: "flex" }}><I.Cal s={14} /></div>
                 <input type="date" lang="es" value={filtroFecha || ""}
                   onChange={e => { const v = e.target.value || null; setFiltroFecha(v); loadPedidos(v); }}
                   title="Seleccionar fecha concreta"
                   style={{
-                    width: "100%", padding: "8px 8px 8px 30px", borderRadius: 10,
-                    border: "2px solid #4F6867", fontSize: 13,
-                    background: "#fff", color: "#1B1C39",
+                    width: "100%", padding: "9px 8px 9px 30px", borderRadius: 10,
+                    border: filtroFecha && ![fmt.todayISO(), fmt.tomorrowISO(), fmt.dayAfterISO(), null].includes(filtroFecha)
+                      ? "2px solid #4F6867" : "1.5px solid #d4cec6",
+                    background: filtroFecha && ![fmt.todayISO(), fmt.tomorrowISO(), fmt.dayAfterISO(), null].includes(filtroFecha)
+                      ? "#E1F2FC" : "#fff",
+                    fontSize: 13, color: "#1B1C39",
                     outline: "none",
                   }} />
               </div>
             </div>
 
-            {/* Status filter pills */}
-            <div id="filter-pills" style={{ display: "flex", gap: 6, marginBottom: isDesktop ? 0 : 14, flex: isDesktop ? "none" : undefined }}>
-              {[
-                { key: "pendientes", label: "Pendientes" },
-                { key: "recogidos", label: "Recogidos" },
-                { key: "todos", label: "Todos" },
-              ].map(f => (
-                <button key={f.key} title={`Filtrar: ${f.label}`} onClick={() => setFiltro(f.key)}
-                  style={{
-                    padding: "6px 14px", borderRadius: 20, fontSize: 12,
-                    border: filtro === f.key ? "1.5px solid #4F6867" : "1px solid #A2C2D0",
-                    background: filtro === f.key ? "#E1F2FC" : "transparent",
-                    color: filtro === f.key ? "#1B1C39" : "#4F6867",
-                    fontWeight: filtro === f.key ? 700 : 500,
-                    cursor: "pointer", transition: "all 0.15s",
-                  }}>
-                  {f.label}
-                </button>
-              ))}
-            </div>
-
-            </div>{/* end desktop filters row */}
-
-            {/* Search bar — always below filters */}
-            <div style={{ position: "relative", marginBottom: 14 }}>
-              <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#A2C2D0", pointerEvents: "none" }}>
-                <I.Search s={16} />
+            {/* ── Status filter pills + search ── */}
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 14, flexWrap: "wrap" }}>
+              <div id="filter-pills" style={{ display: "flex", gap: 6 }}>
+                {[
+                  { key: "pendientes", label: "Pendientes" },
+                  { key: "recogidos", label: "Recogidos" },
+                  { key: "todos", label: "Todos" },
+                ].map(f => {
+                  const sel = filtro === f.key;
+                  return (
+                  <button key={f.key} title={`Filtrar: ${f.label}`} onClick={() => setFiltro(f.key)}
+                    style={{
+                      padding: "7px 16px", borderRadius: 20, fontSize: 12,
+                      border: sel ? "1.5px solid #4F6867" : "1.5px solid #d4cec6",
+                      background: sel ? "#E1F2FC" : "#fff",
+                      color: sel ? "#1B1C39" : "#4F6867",
+                      fontWeight: sel ? 700 : 500,
+                      cursor: "pointer", transition: "all 0.15s",
+                      fontFamily: "'Roboto Condensed', sans-serif",
+                    }}>
+                    {f.label}
+                  </button>
+                  );
+                })}
               </div>
-              <input placeholder="Buscar por cliente, teléfono, notas..."
-                value={busqueda} onChange={e => onBusquedaChange(e.target.value)}
-                style={{
-                  width: "100%", padding: "10px 10px 10px 36px", borderRadius: 10,
-                  border: "1.5px solid #A2C2D0", fontSize: 13,
-                  background: "#fff", color: "#1B1C39",
-                  outline: "none", boxSizing: "border-box",
-                  fontFamily: "'Roboto Condensed', sans-serif",
-                }} />
+              <div style={{ position: "relative", flex: 1, minWidth: 180 }}>
+                <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#A2C2D0", pointerEvents: "none" }}>
+                  <I.Search s={16} />
+                </div>
+                <input placeholder="Buscar por cliente, teléfono, notas..."
+                  value={busqueda} onChange={e => onBusquedaChange(e.target.value)}
+                  style={{
+                    width: "100%", padding: "8px 10px 8px 36px", borderRadius: 20,
+                    border: "1.5px solid #d4cec6", fontSize: 13,
+                    background: "#fff", color: "#1B1C39",
+                    outline: "none", boxSizing: "border-box",
+                    fontFamily: "'Roboto Condensed', sans-serif",
+                  }} />
+              </div>
             </div>
 
             {/* Orders grouped by date */}
