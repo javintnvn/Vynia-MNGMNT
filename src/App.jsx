@@ -141,10 +141,33 @@ const fmt = {
   dayAfterISO: () => { const t = new Date(); t.setDate(t.getDate()+2); return t.toISOString().split("T")[0]; },
 };
 
+// ─── RESPONSIVE BREAKPOINTS ───
+function useBreakpoint() {
+  const get = () => {
+    const w = window.innerWidth;
+    if (w >= 1024) return "desktop";
+    if (w >= 768) return "tablet";
+    return "mobile";
+  };
+  const [bp, setBp] = useState(get);
+  useEffect(() => {
+    let timer;
+    const onResize = () => { clearTimeout(timer); timer = setTimeout(() => setBp(get()), 80); };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return bp;
+}
+
 // ═══════════════════════════════════════════════════════════
 //  MAIN APP COMPONENT
 // ═══════════════════════════════════════════════════════════
 export default function VyniaApp() {
+  // ─── RESPONSIVE ───
+  const bp = useBreakpoint();
+  const isDesktop = bp === "desktop";
+  const isTablet = bp === "tablet";
+
   // ─── STATE ───
   const [tab, setTab] = useState("pedidos");   // pedidos | nuevo | produccion
   const [loading, setLoading] = useState(false);
@@ -713,19 +736,19 @@ export default function VyniaApp() {
       background: "#EFE9E4",
       fontFamily: "'Roboto Condensed', 'Segoe UI', system-ui, sans-serif",
       color: "#1B1C39",
-      maxWidth: 960,
+      maxWidth: isDesktop ? 1400 : 960,
       margin: "0 auto",
       position: "relative",
-      paddingBottom: 90,
+      paddingBottom: isDesktop ? 24 : 90,
     }}>
       {/* ════ HEADER ════ */}
       <header style={{
         background: "linear-gradient(180deg, #E1F2FC 0%, #EFE9E4 100%)",
-        padding: "16px 20px 12px",
+        padding: isDesktop ? "16px 32px 12px" : "16px 20px 12px",
         position: "sticky", top: 0, zIndex: 50,
         borderBottom: "1px solid #A2C2D0",
       }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: isDesktop ? 16 : 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{
               width: 42, height: 42,
@@ -744,7 +767,39 @@ export default function VyniaApp() {
               }}>Pedidos</h1>
             </div>
           </div>
-          
+
+          {/* Stats pills — desktop: inline in header row */}
+          {isDesktop && (
+            <div style={{
+              display: "flex", gap: 6, flex: 1, justifyContent: "center", maxWidth: 420,
+            }}>
+              {[
+                { label: "Total", value: statsTotal, color: "#4F6867", bg: "#E1F2FC", filter: "todos" },
+                { label: "Pendientes", value: statsPendientes, color: "#1B1C39", bg: "#E1F2FC", filter: "pendientes" },
+                { label: "Recogidos", value: statsRecogidos, color: "#4F6867", bg: "#E1F2FC", filter: "recogidos" },
+              ].map(s => (
+                <button key={s.label} title={`Filtrar por ${s.label.toLowerCase()}`} onClick={() => { setTab("pedidos"); setFiltro(s.filter); }}
+                  style={{
+                    flex: 1, padding: "6px 8px", borderRadius: 10,
+                    border: filtro === s.filter && tab === "pedidos" ? `1.5px solid ${s.color}` : "1px solid #A2C2D0",
+                    background: filtro === s.filter && tab === "pedidos" ? s.bg : "#fff",
+                    cursor: "pointer", textAlign: "center",
+                    transition: "all 0.2s",
+                  }}>
+                  <div style={{
+                    fontSize: 18, fontWeight: 800,
+                    fontFamily: "'Roboto Condensed', sans-serif", color: s.color,
+                    lineHeight: 1,
+                  }}>{s.value}</div>
+                  <div style={{
+                    fontSize: 9, color: "#4F6867", marginTop: 2,
+                    textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600,
+                  }}>{s.label}</div>
+                </button>
+              ))}
+            </div>
+          )}
+
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <button title={apiMode === "live" ? "Cambiar a modo demo (sin conexión)" : "Cambiar a modo live (Notion)"} onClick={() => {
               setApiMode(m => m === "demo" ? "live" : "demo");
@@ -775,9 +830,9 @@ export default function VyniaApp() {
           </div>
         </div>
 
-        {/* Stats bar */}
+        {/* Stats bar — mobile/tablet only (desktop renders inline above) */}
         <div style={{
-          display: "flex", gap: 8, marginTop: 14, overflow: "auto",
+          display: isDesktop ? "none" : "flex", gap: 8, marginTop: 14, overflow: "auto",
           scrollbarWidth: "none", msOverflowStyle: "none",
         }}>
           {[
@@ -861,15 +916,22 @@ export default function VyniaApp() {
         </div>
       )}
 
-      <main style={{ padding: "0 16px" }}>
+      <main style={{ padding: isDesktop ? "0 32px" : "0 16px" }}>
 
         {/* ══════════════════════════════════════════
             TAB: PEDIDOS
         ══════════════════════════════════════════ */}
         {tab === "pedidos" && (
           <div style={{ paddingTop: 12 }}>
+            {/* Desktop: all filters in one row */}
+            <div style={{
+              display: isDesktop ? "flex" : "block",
+              gap: isDesktop ? 16 : 0,
+              alignItems: "center",
+              marginBottom: isDesktop ? 16 : 0,
+            }}>
             {/* Date selector */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            <div style={{ display: "flex", gap: isDesktop ? 6 : 8, marginBottom: isDesktop ? 0 : 10, flex: isDesktop ? "none" : undefined }}>
               {[
                 { label: "Hoy", val: fmt.todayISO() },
                 { label: "Mañana", val: fmt.tomorrowISO() },
@@ -905,7 +967,7 @@ export default function VyniaApp() {
             </div>
 
             {/* Status filter pills */}
-            <div id="filter-pills" style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+            <div id="filter-pills" style={{ display: "flex", gap: 6, marginBottom: isDesktop ? 0 : 14, flex: isDesktop ? "none" : undefined }}>
               {[
                 { key: "pendientes", label: "Pendientes" },
                 { key: "recogidos", label: "Recogidos" },
@@ -926,7 +988,7 @@ export default function VyniaApp() {
             </div>
 
             {/* Search bar */}
-            <div style={{ position: "relative", marginBottom: 14 }}>
+            <div style={{ position: "relative", marginBottom: isDesktop ? 0 : 14, flex: isDesktop ? 1 : undefined, minWidth: isDesktop ? 200 : undefined }}>
               <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#A2C2D0", pointerEvents: "none" }}>
                 <I.Search s={16} />
               </div>
@@ -940,6 +1002,7 @@ export default function VyniaApp() {
                   fontFamily: "'Roboto Condensed', sans-serif",
                 }} />
             </div>
+            </div>{/* end desktop filters row */}
 
             {/* Orders grouped by date */}
             {pedidosFiltrados.length === 0 ? (
@@ -980,13 +1043,17 @@ export default function VyniaApp() {
                   </div>
 
                   {/* Order cards */}
+                  <div className="grid-cards" style={{
+                    display: "grid",
+                    gridTemplateColumns: isDesktop ? "repeat(3, 1fr)" : isTablet ? "repeat(2, 1fr)" : "1fr",
+                    gap: isDesktop ? 12 : 8,
+                  }}>
                   {groups[dateKey].map(p => (
                     <div key={p.id} className="order-card" style={{
                       background: "#fff",
                       borderRadius: 14,
                       border: `1px solid ${p.recogido ? "#A2C2D0" : p.noAcude ? "#FFCDD2" : "#A2C2D0"}`,
                       padding: "14px 16px",
-                      marginBottom: 8,
                       boxShadow: "0 1px 4px rgba(60,50,30,0.04)",
                       opacity: p.recogido ? 0.65 : 1,
                       transition: "all 0.2s",
@@ -1109,6 +1176,7 @@ export default function VyniaApp() {
                       </div>
                     </div>
                   ))}
+                  </div>{/* end grid-cards */}
                 </div>
               ))
             )}
@@ -1125,6 +1193,14 @@ export default function VyniaApp() {
               margin: "0 0 16px", color: "#1B1C39",
             }}>Nuevo Pedido</h2>
 
+            <div style={{
+              display: isDesktop ? "grid" : "block",
+              gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr",
+              gap: isDesktop ? 16 : 0,
+              alignItems: "start",
+            }}>
+            {/* ── Left column (desktop) ── */}
+            <div>
             {/* ── Cliente ── */}
             <section style={{
               background: "#fff", borderRadius: 14, padding: "16px",
@@ -1221,6 +1297,9 @@ export default function VyniaApp() {
               </div>
             </section>
 
+            </div>{/* end left column */}
+            {/* ── Right column (desktop) ── */}
+            <div>
             {/* ── Productos ── */}
             <section style={{
               background: "#fff", borderRadius: 14, padding: "16px",
@@ -1416,6 +1495,8 @@ export default function VyniaApp() {
                 </div>
               </div>
             </section>
+            </div>{/* end right column */}
+            </div>{/* end 2-column grid */}
 
             {/* ── Submit ── */}
             <button title="Crear nuevo pedido en Notion" onClick={crearPedido}
@@ -1462,8 +1543,14 @@ export default function VyniaApp() {
               margin: "0 0 16px", color: "#1B1C39",
             }}>Producción Diaria</h2>
 
-            {/* Date selector */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+            {/* Date selector + toggle — inline on desktop */}
+            <div style={{
+              display: isDesktop ? "flex" : "block",
+              gap: isDesktop ? 16 : 0,
+              alignItems: "center",
+              marginBottom: 14,
+            }}>
+            <div style={{ display: "flex", gap: 8, marginBottom: isDesktop ? 0 : 14, flex: isDesktop ? 1 : undefined }}>
               {[
                 { label: "Hoy", val: fmt.todayISO() },
                 { label: "Mañana", val: fmt.tomorrowISO() },
@@ -1496,7 +1583,7 @@ export default function VyniaApp() {
             </div>
 
             {/* Toggle recogidos */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+            <div style={{ display: "flex", gap: 8, flex: isDesktop ? "none" : undefined }}>
               <button title="Ver solo producción pendiente" onClick={() => setOcultarRecogidos(true)}
                 style={{
                   flex: 1, padding: "8px 0", borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: "pointer",
@@ -1512,6 +1599,7 @@ export default function VyniaApp() {
                   color: !ocultarRecogidos ? "#1B1C39" : "#4F6867",
                 }}>Todo el día</button>
             </div>
+            </div>{/* end date+toggle wrapper */}
 
             {/* Product list */}
             {(() => {
@@ -1560,12 +1648,17 @@ export default function VyniaApp() {
                     </div>
                   </div>
 
+                  <div className="grid-produccion" style={{
+                    display: "grid",
+                    gridTemplateColumns: isDesktop ? "repeat(2, 1fr)" : "1fr",
+                    gap: 8,
+                  }}>
                   {prodView.map(prod => {
                     if (prod.udsFiltradas === 0 && ocultarRecogidos) return null;
                     return (
                     <div key={prod.nombre} style={{
                       background: "#fff", borderRadius: 14, border: "1px solid #A2C2D0",
-                      marginBottom: 8, overflow: "hidden",
+                      overflow: "hidden",
                       boxShadow: "0 1px 4px rgba(60,50,30,0.04)",
                     }}>
                       {/* Product row */}
@@ -1661,6 +1754,7 @@ export default function VyniaApp() {
                     </div>
                     );
                   })}
+                  </div>{/* end grid-produccion */}
                 </div>
               );
             })()}
@@ -1678,9 +1772,9 @@ export default function VyniaApp() {
           }} onClick={() => { setSelectedPedido(null); setEditingFecha(null); setConfirmCancel(null); setEditingProductos(false); setEditLineas([]); setEditSearchProd(""); }}>
             <div style={{
               background: "#fff", borderRadius: 16, padding: "24px 20px",
-              maxWidth: 400, width: "100%",
+              maxWidth: isDesktop ? 540 : 400, width: "100%",
               boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
-              maxHeight: "80vh", overflowY: "auto",
+              maxHeight: isDesktop ? "85vh" : "80vh", overflowY: "auto",
             }} onClick={e => e.stopPropagation()}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -1932,12 +2026,15 @@ export default function VyniaApp() {
 
       {/* ════ BOTTOM NAV ════ */}
       <nav style={{
-        position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)",
-        width: "100%", maxWidth: 960,
+        position: "fixed", bottom: isDesktop ? 16 : 0, left: "50%", transform: "translateX(-50%)",
+        width: isDesktop ? "auto" : "100%", maxWidth: isDesktop ? 380 : 960,
         background: "rgba(255,255,255,0.95)",
         backdropFilter: "blur(12px)",
-        borderTop: "1px solid #A2C2D0",
-        display: "flex", padding: "8px 0 env(safe-area-inset-bottom, 8px)",
+        borderTop: isDesktop ? "none" : "1px solid #A2C2D0",
+        border: isDesktop ? "1px solid #A2C2D0" : undefined,
+        borderRadius: isDesktop ? 16 : 0,
+        display: "flex", padding: isDesktop ? "8px 24px" : "8px 0 env(safe-area-inset-bottom, 8px)",
+        boxShadow: isDesktop ? "0 4px 24px rgba(0,0,0,0.12)" : "none",
         zIndex: 60,
       }}>
         {[
@@ -1963,7 +2060,7 @@ export default function VyniaApp() {
                 display: "flex", alignItems: "center", justifyContent: "center",
                 color: tab === "nuevo" ? "#fff" : "#4F6867",
                 boxShadow: tab === "nuevo" ? "0 2px 10px rgba(166,119,38,0.3)" : "none",
-                marginTop: -20,
+                marginTop: isDesktop ? -14 : -20,
                 border: "3px solid #fff",
               }}>
                 {t.icon}
@@ -2001,6 +2098,18 @@ export default function VyniaApp() {
 
       {/* ════ GLOBAL STYLES ════ */}
       <style>{`
+        :root {
+          --vynia-primary: #4F6867;
+          --vynia-secondary: #1B1C39;
+          --vynia-accent: #E1F2FC;
+          --vynia-bg: #EFE9E4;
+          --vynia-muted: #A2C2D0;
+          --vynia-radius: 14px;
+          --vynia-transition: 200ms ease;
+        }
+        .grid-cards, .grid-produccion {
+          transition: grid-template-columns 0.3s ease;
+        }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes slideIn {
           from { opacity: 0; transform: translate(-50%, -12px); }
