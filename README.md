@@ -17,8 +17,10 @@ Sistema de gestion de pedidos para **Vynia**, conectado a Notion como base de da
 - Modificar productos y cantidades de un pedido existente desde el modal (borra registros anteriores y recrea)
 - Cancelar pedido (archiva en Notion) y cambiar fecha de entrega desde el modal
 - Importe total calculado por pedido (carga progresiva en background desde CATALOGO + Registros)
-- Badges: PAGADO, INCIDENCIA
+- Clasificacion automatica Manana/Tarde dentro de cada fecha (detecta "tarde" en notas o hora >= 17:00)
+- Badges: PAGADO, INCIDENCIA, TARDE
 - Stats bar con contadores (total, pendientes, recogidos)
+- Boton "Ver en Notion" en modal de detalle (abre la pagina del pedido en Notion)
 
 ### Nuevo Pedido
 - Formulario: cliente (autocompletado) + telefono
@@ -56,7 +58,7 @@ Vynia-MNGMNT/
 │   ├── registros.js        # GET (productos de un pedido) + POST (crear linea) + DELETE (archivar lineas)
 │   └── produccion.js       # GET (produccion diaria agregada con clientes, incluye recogidos)
 ├── src/
-│   ├── App.jsx             # Componente principal (toda la UI, ~1900 lineas)
+│   ├── App.jsx             # Componente principal (toda la UI, ~2100 lineas)
 │   └── api.js              # Cliente API frontend (wrapper fetch)
 ├── main.jsx                # Entry point React
 ├── index.html
@@ -151,7 +153,7 @@ Se configura en `.env.local` para desarrollo local y en el dashboard de Vercel p
 
 - **Palette**: Vynia brand — primario `#4F6867`, secundario `#1B1C39`, accent `#E1F2FC`, bg `#EFE9E4`, muted `#A2C2D0`
 - **Fuentes**: Roboto Condensed (titulos/numeros), Inter (texto)
-- **Responsive**: Mobile-first, max-width 960px centrado
+- **Responsive**: Mobile-first con breakpoints JS (desktop >=1024px 3 columnas, tablet >=768px 2 columnas, mobile 1 columna). Max-width 1400px desktop / 960px tablet-mobile
 - **Tooltips**: Hover (desktop) + long-press ~0.4s (movil) con popup animado
 - **Print**: CSS @media print para imprimir lista de pedidos/produccion
 - **Bottom nav**: 3 tabs fijas (Pedidos, Nuevo, Produccion) con safe-area-inset-bottom
@@ -174,3 +176,5 @@ Se configura en `.env.local` para desarrollo local y en el dashboard de Vercel p
 - El catalogo de productos esta hardcodeado en `CATALOGO[]` en App.jsx (54 productos con nombre, precio, categoria)
 - El importe de cada pedido se calcula en frontend: se cargan registros en background por lotes de 5, se cruzan nombres de productos con CATALOGO (lookup case-insensitive con `toLowerCase().trim()`) y se suman `unidades * precio`
 - Modificar pedido usa estrategia delete-all + recreate: archiva todos los registros existentes y crea nuevos
+- Clasificacion Manana/Tarde: `esTarde(p)` detecta keyword "tarde" en notas, hora >= 17 en notas (regex), u hora >= 17 en Fecha entrega
+- Responsive usa hook `useBreakpoint()` con breakpoints JS (no CSS media queries) para mantener coherencia con inline styles
