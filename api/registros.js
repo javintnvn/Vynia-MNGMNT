@@ -8,6 +8,9 @@ export default async function handler(req, res) {
   if (req.method === "GET") {
     return handleGet(req, res);
   }
+  if (req.method === "DELETE") {
+    return handleDelete(req, res);
+  }
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -67,6 +70,23 @@ export default async function handler(req, res) {
   }
 }
 
+async function handleDelete(req, res) {
+  const { registroIds } = req.body;
+  if (!Array.isArray(registroIds) || registroIds.length === 0) {
+    return res.status(400).json({ error: "Missing registroIds array" });
+  }
+
+  try {
+    for (const rid of registroIds) {
+      await notion.pages.update({ page_id: rid, archived: true });
+    }
+    return res.status(200).json({ ok: true });
+  } catch (error) {
+    console.error("Error deleting registros:", error);
+    return res.status(500).json({ error: error.message });
+  }
+}
+
 async function handleGet(req, res) {
   const { pedidoId } = req.query;
   if (!pedidoId) {
@@ -92,7 +112,7 @@ async function handleGet(req, res) {
       const nombre = (auxProd?.formula?.string || "").trim()
         || (reg.properties["Nombre"]?.title || []).map(t => t.plain_text).join("").trim();
       const unidades = reg.properties["Unidades "]?.number || 0;
-      return { nombre, unidades };
+      return { id: reg.id, nombre, unidades };
     }).filter(p => p.nombre && p.unidades > 0);
 
     return res.status(200).json(productos);

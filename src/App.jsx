@@ -101,6 +101,7 @@ const I = {
   Tag: (p = {}) => <svg width={p.s||14} height={p.s||14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2zM7 7h.01"/></svg>,
   Euro: () => <span style={{fontWeight:700,fontSize:13}}>€</span>,
   Printer: (p = {}) => <svg width={p.s||18} height={p.s||18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>,
+  Edit: (p = {}) => <svg width={p.s||14} height={p.s||14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>,
 };
 
 // ─── DATE HELPERS ───
@@ -232,6 +233,9 @@ export default function VyniaApp() {
   const [phoneMenu, setPhoneMenu] = useState(null); // { tel, x, y }
   const [confirmCancel, setConfirmCancel] = useState(null); // pedidoId
   const [editingFecha, setEditingFecha] = useState(null); // { pedidoId, newFecha }
+  const [editingProductos, setEditingProductos] = useState(false);
+  const [editLineas, setEditLineas] = useState([]); // [{ nombre, cantidad, precio, cat }]
+  const [editSearchProd, setEditSearchProd] = useState("");
 
   // Refs
   const toastTimer = useRef(null);
@@ -456,6 +460,56 @@ export default function VyniaApp() {
       invalidateProduccion(pedido.fecha); invalidateProduccion(newFecha); invalidateSearchCache();
       setEditingFecha(null);
       notify("ok", "Fecha actualizada");
+    } catch (err) {
+      notify("err", err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── MODIFY PEDIDO PRODUCTS ───
+  const addEditProducto = (prod) => {
+    const existing = editLineas.find(l => l.nombre === prod.nombre);
+    if (existing) {
+      setEditLineas(editLineas.map(l => l.nombre === prod.nombre ? {...l, cantidad: l.cantidad + 1} : l));
+    } else {
+      setEditLineas([...editLineas, { nombre: prod.nombre, precio: prod.precio, cantidad: 1, cat: prod.cat }]);
+    }
+    setEditSearchProd("");
+  };
+
+  const updateEditQty = (nombre, delta) => {
+    setEditLineas(ls => ls.map(l => l.nombre === nombre ? {...l, cantidad: Math.max(0, l.cantidad + delta)} : l).filter(l => l.cantidad > 0));
+  };
+
+  const editProductosFiltrados = editSearchProd
+    ? CATALOGO.filter(p => p.nombre.toLowerCase().includes(editSearchProd.toLowerCase()))
+    : [];
+
+  const guardarModificacion = async (pedido, newLineas) => {
+    if (newLineas.length === 0) { notify("err", "Añade al menos un producto"); return; }
+    if (apiMode === "demo") {
+      const newProds = newLineas.map(l => ({ nombre: l.nombre, unidades: l.cantidad }));
+      setSelectedPedido(prev => prev ? { ...prev, productos: newProds } : prev);
+      setEditingProductos(false); setEditLineas([]); setEditSearchProd("");
+      notify("ok", "Pedido modificado");
+      return;
+    }
+    setLoading(true);
+    try {
+      const oldIds = (pedido.productos || []).filter(p => p.id).map(p => p.id);
+      if (oldIds.length > 0) {
+        await notion.deleteRegistros(oldIds);
+      }
+      for (const linea of newLineas) {
+        await notion.crearRegistro(pedido.id, linea.nombre, linea.cantidad);
+      }
+      // Reload fresh registros (with new IDs)
+      const freshProds = await notion.loadRegistros(pedido.id);
+      setSelectedPedido(prev => prev ? { ...prev, productos: Array.isArray(freshProds) ? freshProds : [] } : prev);
+      setEditingProductos(false); setEditLineas([]); setEditSearchProd("");
+      invalidateProduccion(pedido.fecha); invalidateSearchCache();
+      notify("ok", "Pedido modificado");
     } catch (err) {
       notify("err", err.message);
     } finally {
@@ -1597,7 +1651,7 @@ export default function VyniaApp() {
             position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
             display: "flex", alignItems: "center", justifyContent: "center",
             zIndex: 200, padding: 20,
-          }} onClick={() => { setSelectedPedido(null); setEditingFecha(null); setConfirmCancel(null); }}>
+          }} onClick={() => { setSelectedPedido(null); setEditingFecha(null); setConfirmCancel(null); setEditingProductos(false); setEditLineas([]); setEditSearchProd(""); }}>
             <div style={{
               background: "#fff", borderRadius: 16, padding: "24px 20px",
               maxWidth: 400, width: "100%",
@@ -1613,7 +1667,7 @@ export default function VyniaApp() {
                     <span style={{ fontSize: 11, color: "#A2C2D0" }}>Pedido #{selectedPedido.numPedido}</span>
                   )}
                 </div>
-                <button title="Cerrar detalle" onClick={() => { setSelectedPedido(null); setEditingFecha(null); setConfirmCancel(null); }} style={{
+                <button title="Cerrar detalle" onClick={() => { setSelectedPedido(null); setEditingFecha(null); setConfirmCancel(null); setEditingProductos(false); setEditLineas([]); setEditSearchProd(""); }} style={{
                   border: "none", background: "transparent", cursor: "pointer",
                   fontSize: 20, color: "#A2C2D0", padding: "0 4px",
                 }}>×</button>
@@ -1657,24 +1711,104 @@ export default function VyniaApp() {
                   )}
                 </div>
 
-                {/* Full product list for this pedido */}
-                {selectedPedido.productos && selectedPedido.productos.length > 0 && (
+                {/* Full product list / editor */}
+                {editingProductos ? (
                   <div style={{ background: "#F5F5F5", borderRadius: 10, padding: "10px 14px" }}>
-                    <p style={{ fontSize: 10, color: "#A2C2D0", margin: "0 0 6px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                      Productos del pedido
+                    <p style={{ fontSize: 10, color: "#4F6867", margin: "0 0 8px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                      Modificar productos
                     </p>
-                    {selectedPedido.productos.map((item, i) => (
-                      <div key={i} style={{
-                        display: "flex", justifyContent: "space-between", alignItems: "center",
-                        padding: "5px 0",
-                        borderBottom: i < selectedPedido.productos.length - 1 ? "1px solid #E1F2FC" : "none",
-                        fontSize: 13,
+                    {/* Search to add product */}
+                    <div style={{ position: "relative", marginBottom: 8 }}>
+                      <div style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#A2C2D0", pointerEvents: "none" }}><I.Search s={14} /></div>
+                      <input placeholder="Buscar producto..." value={editSearchProd}
+                        onChange={e => setEditSearchProd(e.target.value)}
+                        style={{ width: "100%", padding: "8px 8px 8px 32px", borderRadius: 8, border: "1.5px solid #A2C2D0", fontSize: 12, background: "#fff", color: "#1B1C39", outline: "none", boxSizing: "border-box" }} />
+                      {editProductosFiltrados.length > 0 && (
+                        <div style={{ position: "absolute", left: 0, right: 0, top: "100%", background: "#fff", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.12)", zIndex: 10, maxHeight: 160, overflowY: "auto", marginTop: 2 }}>
+                          {editProductosFiltrados.slice(0, 8).map(p => (
+                            <button key={p.nombre} onClick={() => addEditProducto(p)}
+                              style={{ width: "100%", padding: "8px 12px", border: "none", borderBottom: "1px solid #F0F0F0", background: "transparent", cursor: "pointer", textAlign: "left", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ color: "#4F6867", fontWeight: 700 }}>+</span>
+                              <span style={{ flex: 1, color: "#1B1C39" }}>{p.nombre}</span>
+                              <span style={{ fontSize: 10, color: "#A2C2D0" }}>{p.precio.toFixed(2)}€</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {/* Editable lines */}
+                    {editLineas.length === 0 && (
+                      <p style={{ fontSize: 12, color: "#A2C2D0", textAlign: "center", margin: "12px 0" }}>Sin productos. Busca para añadir.</p>
+                    )}
+                    {editLineas.map((l, i) => (
+                      <div key={l.nombre} style={{
+                        display: "flex", alignItems: "center", gap: 6, padding: "6px 0",
+                        borderBottom: i < editLineas.length - 1 ? "1px solid #E1F2FC" : "none",
                       }}>
-                        <span style={{ color: "#1B1C39" }}>{item.nombre}</span>
-                        <span style={{ fontWeight: 700, color: "#4F6867" }}>{item.unidades} ud{item.unidades !== 1 ? "s" : ""}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: "#1B1C39", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.nombre}</div>
+                          {l.precio > 0 && <div style={{ fontSize: 10, color: "#4F6867" }}>{l.precio.toFixed(2)}€/ud</div>}
+                        </div>
+                        <div style={{ display: "flex", background: "#E1F2FC", borderRadius: 8 }}>
+                          <button onClick={() => updateEditQty(l.nombre, -1)}
+                            style={{ width: 28, height: 28, border: "none", background: "transparent", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#4F6867", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <I.Minus s={12} />
+                          </button>
+                          <span style={{ width: 24, textAlign: "center", lineHeight: "28px", fontSize: 13, fontWeight: 700, color: "#1B1C39" }}>{l.cantidad}</span>
+                          <button onClick={() => updateEditQty(l.nombre, 1)}
+                            style={{ width: 28, height: 28, border: "none", background: "transparent", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#4F6867", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <I.Plus s={12} />
+                          </button>
+                        </div>
+                        <button onClick={() => setEditLineas(ls => ls.filter(x => x.nombre !== l.nombre))}
+                          style={{ width: 28, height: 28, border: "none", background: "transparent", cursor: "pointer", color: "#C62828", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <I.Trash s={13} />
+                        </button>
                       </div>
                     ))}
+                    {/* Save / Cancel */}
+                    <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                      <button onClick={() => guardarModificacion(selectedPedido, editLineas)}
+                        style={{ flex: 1, padding: "9px 14px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #4F6867, #3D5655)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                        Guardar cambios
+                      </button>
+                      <button onClick={() => { setEditingProductos(false); setEditLineas([]); setEditSearchProd(""); }}
+                        style={{ padding: "9px 14px", borderRadius: 8, border: "1px solid #A2C2D0", background: "transparent", color: "#A2C2D0", fontSize: 12, cursor: "pointer" }}>
+                        Cancelar
+                      </button>
+                    </div>
                   </div>
+                ) : (
+                  <>
+                    {selectedPedido.productos && selectedPedido.productos.length > 0 && (
+                      <div style={{ background: "#F5F5F5", borderRadius: 10, padding: "10px 14px" }}>
+                        <p style={{ fontSize: 10, color: "#A2C2D0", margin: "0 0 6px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                          Productos del pedido
+                        </p>
+                        {selectedPedido.productos.map((item, i) => (
+                          <div key={i} style={{
+                            display: "flex", justifyContent: "space-between", alignItems: "center",
+                            padding: "5px 0",
+                            borderBottom: i < selectedPedido.productos.length - 1 ? "1px solid #E1F2FC" : "none",
+                            fontSize: 13,
+                          }}>
+                            <span style={{ color: "#1B1C39" }}>{item.nombre}</span>
+                            <span style={{ fontWeight: 700, color: "#4F6867" }}>{item.unidades} ud{item.unidades !== 1 ? "s" : ""}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <button onClick={() => {
+                      const initial = (selectedPedido.productos || []).map(p => {
+                        const cat = CATALOGO.find(c => c.nombre === p.nombre);
+                        return { nombre: p.nombre, cantidad: p.unidades || p.cantidad || 1, precio: cat?.precio || 0, cat: cat?.cat || "" };
+                      });
+                      setEditLineas(initial);
+                      setEditingProductos(true);
+                    }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 9, border: "1.5px solid #A2C2D0", background: "transparent", color: "#4F6867", fontSize: 12, fontWeight: 600, cursor: "pointer", width: "100%" }}>
+                      <I.Edit s={13} /> Modificar pedido
+                    </button>
+                  </>
                 )}
 
                 {selectedPedido.notas && (

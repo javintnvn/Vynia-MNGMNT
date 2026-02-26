@@ -134,6 +134,13 @@ export const notion = {
     return apiCall(`/registros?pedidoId=${pedidoId}`);
   },
 
+  async deleteRegistros(registroIds) {
+    return apiCall("/registros", {
+      method: "DELETE",
+      body: JSON.stringify({ registroIds }),
+    });
+  },
+
   async loadProduccion(fecha) {
     return apiCall(`/produccion?fecha=${fecha}`);
   },
