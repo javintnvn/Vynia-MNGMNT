@@ -30,14 +30,13 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1. Get pedidos for the given date (not recogido, not no-acude)
+    // 1. Get pedidos for the given date (include recogido for frontend discrimination)
     const pedidosRes = await notion.databases.query({
       database_id: DB_PEDIDOS,
       filter: {
         and: [
           { property: "Fecha entrega", date: { on_or_after: fecha } },
           { property: "Fecha entrega", date: { before: nextDay(fecha) } },
-          { property: "Recogido", checkbox: { equals: false } },
           { property: "No acude", checkbox: { equals: false } },
         ],
       },

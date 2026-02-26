@@ -227,6 +227,7 @@ export default function VyniaApp() {
   const [produccionData, setProduccionData] = useState([]);
   const [produccionFecha, setProduccionFecha] = useState(fmt.todayISO());
   const [expandedProduct, setExpandedProduct] = useState(null);
+  const [ocultarRecogidos, setOcultarRecogidos] = useState(true);
   const [selectedPedido, setSelectedPedido] = useState(null);
   const [phoneMenu, setPhoneMenu] = useState(null); // { tel, x, y }
   const [confirmCancel, setConfirmCancel] = useState(null); // pedidoId
@@ -338,8 +339,9 @@ export default function VyniaApp() {
         { id: "demo-1", nombre: "Pedido María García", cliente: "María García", tel: "600123456", fecha: fmt.todayISO(), hora: "10:30", productos: "2x Cookie pistacho, 1x Brownie", importe: 8.60, recogido: false, pagado: true, notas: "", noAcude: false, incidencia: false },
         { id: "demo-2", nombre: "Pedido Juan López", cliente: "Juan López", tel: "612345678", fecha: fmt.todayISO(), hora: "12:00", productos: "1x Hogaza Miel, 3x Viñacaos", importe: 18.50, recogido: false, pagado: false, notas: "Sin nueces", noAcude: false, incidencia: false },
         { id: "demo-4", nombre: "Pedido Carlos", cliente: "Carlos Martín", tel: "677888999", fecha: fmt.todayISO(), hora: "09:00", productos: "4x Magdalenas, 2x Bollitos", importe: 9.60, recogido: false, pagado: true, notas: "", noAcude: false, incidencia: false },
+        { id: "demo-5", nombre: "Pedido Ana Ruiz", cliente: "Ana Ruiz", tel: "655111222", fecha: fmt.todayISO(), hora: "09:30", productos: "3x Cookie pistacho, 2x Magdalenas", importe: 11.00, recogido: true, pagado: true, notas: "", noAcude: false, incidencia: false },
       ];
-      const filtered = demoPedidos.filter(p => (p.fecha || "").startsWith(f) && !p.recogido && !p.noAcude);
+      const filtered = demoPedidos.filter(p => (p.fecha || "").startsWith(f) && !p.noAcude);
       const agg = {};
       filtered.forEach(p => {
         (p.productos || "").split(",").forEach(item => {
@@ -798,12 +800,12 @@ export default function VyniaApp() {
                 </button>
               ))}
               <div style={{ flex: 0.8, position: "relative", display: "flex", alignItems: "center" }}>
-                <span style={{ position: "absolute", left: 8, fontSize: 14, pointerEvents: "none", zIndex: 1 }}>📅</span>
+                <div style={{ position: "absolute", left: 9, pointerEvents: "none", zIndex: 1, color: "#4F6867", display: "flex" }}><I.Cal s={14} /></div>
                 <input type="date" lang="es" value={filtroFecha || ""}
                   onChange={e => { const v = e.target.value || null; setFiltroFecha(v); loadPedidos(v); }}
                   title="Seleccionar fecha concreta"
                   style={{
-                    width: "100%", padding: "8px 8px 8px 28px", borderRadius: 10,
+                    width: "100%", padding: "8px 8px 8px 30px", borderRadius: 10,
                     border: "2px solid #4F6867", fontSize: 13,
                     background: "#fff", color: "#1B1C39",
                     outline: "none",
@@ -869,8 +871,8 @@ export default function VyniaApp() {
                       fontSize: 12, fontWeight: 700, color: "#4F6867",
                       textTransform: "uppercase", letterSpacing: "0.06em",
                     }}>
-                      {fmt.isToday(dateKey) ? "📅 Hoy" :
-                       fmt.isTomorrow(dateKey) ? "📅 Mañana" :
+                      {fmt.isToday(dateKey) ? "Hoy" :
+                       fmt.isTomorrow(dateKey) ? "Mañana" :
                        fmt.date(dateKey)}
                     </span>
                     <span style={{
@@ -1115,7 +1117,7 @@ export default function VyniaApp() {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
                 <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                  <span style={{ position: "absolute", left: 10, fontSize: 14, pointerEvents: "none", zIndex: 1 }}>📅</span>
+                  <div style={{ position: "absolute", left: 10, pointerEvents: "none", zIndex: 1, color: "#4F6867", display: "flex" }}><I.Cal s={14} /></div>
                   <input type="date" lang="es" value={fecha}
                     onChange={e => setFecha(e.target.value)}
                     style={{ ...inputStyle, paddingLeft: 30, border: "2px solid #4F6867", background: "#fff" }} />
@@ -1389,11 +1391,11 @@ export default function VyniaApp() {
                 </button>
               ))}
               <div style={{ flex: 0.8, position: "relative", display: "flex", alignItems: "center" }}>
-                <span style={{ position: "absolute", left: 8, fontSize: 14, pointerEvents: "none", zIndex: 1 }}>📅</span>
+                <div style={{ position: "absolute", left: 9, pointerEvents: "none", zIndex: 1, color: "#4F6867", display: "flex" }}><I.Cal s={14} /></div>
                 <input type="date" lang="es" value={produccionFecha}
                   onChange={e => { setProduccionFecha(e.target.value); setExpandedProduct(null); loadProduccion(e.target.value); }}
                   style={{
-                    width: "100%", padding: "8px 8px 8px 28px", borderRadius: 10,
+                    width: "100%", padding: "8px 8px 8px 30px", borderRadius: 10,
                     border: "2px solid #4F6867", fontSize: 13,
                     background: "#fff", color: "#1B1C39",
                     outline: "none",
@@ -1401,122 +1403,175 @@ export default function VyniaApp() {
               </div>
             </div>
 
+            {/* Toggle recogidos */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+              <button title="Ver solo producción pendiente" onClick={() => setOcultarRecogidos(true)}
+                style={{
+                  flex: 1, padding: "8px 0", borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                  border: ocultarRecogidos ? "2px solid #4F6867" : "1.5px solid #A2C2D0",
+                  background: ocultarRecogidos ? "#E1F2FC" : "#EFE9E4",
+                  color: ocultarRecogidos ? "#1B1C39" : "#4F6867",
+                }}>Pendiente</button>
+              <button title="Ver toda la producción del día" onClick={() => setOcultarRecogidos(false)}
+                style={{
+                  flex: 1, padding: "8px 0", borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                  border: !ocultarRecogidos ? "2px solid #4F6867" : "1.5px solid #A2C2D0",
+                  background: !ocultarRecogidos ? "#E1F2FC" : "#EFE9E4",
+                  color: !ocultarRecogidos ? "#1B1C39" : "#4F6867",
+                }}>Todo el día</button>
+            </div>
+
             {/* Product list */}
-            {produccionData.length === 0 ? (
-              <div style={{
-                textAlign: "center", padding: "40px 20px", color: "#A2C2D0",
-              }}>
-                <I.Store s={40} />
-                <p style={{ marginTop: 12, fontSize: 14 }}>No hay producción para este día</p>
-                <button title="Cargar datos de producción" onClick={() => loadProduccion()} style={{
-                  marginTop: 8, padding: "8px 16px", borderRadius: 8,
-                  border: "1px solid #A2C2D0", background: "#fff",
-                  cursor: "pointer", fontSize: 12, color: "#4F6867", fontWeight: 600,
-                }}>Cargar</button>
-              </div>
-            ) : (
-              <div>
-                {/* Summary */}
-                <div style={{
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                  padding: "10px 14px", marginBottom: 12,
-                  background: "#E1F2FC", borderRadius: 10,
-                }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#4F6867" }}>
-                    {produccionData.length} {produccionData.length === 1 ? "producto" : "productos"}
-                  </span>
-                  <span style={{ fontSize: 14, fontWeight: 800, color: "#1B1C39", fontFamily: "'Roboto Condensed', sans-serif" }}>
-                    {produccionData.reduce((s, p) => s + p.totalUnidades, 0)} uds total
-                  </span>
+            {(() => {
+              // Compute filtered view based on ocultarRecogidos
+              const prodView = produccionData.map(prod => {
+                const pedsFiltrados = ocultarRecogidos ? prod.pedidos.filter(p => !p.recogido) : prod.pedidos;
+                const uds = pedsFiltrados.reduce((s, p) => s + p.unidades, 0);
+                return { ...prod, pedidosFiltrados: pedsFiltrados, udsFiltradas: uds, udsRecogidas: prod.totalUnidades - uds };
+              }).filter(p => p.udsFiltradas > 0 || !ocultarRecogidos);
+
+              const totalPendiente = prodView.reduce((s, p) => s + p.udsFiltradas, 0);
+              const totalRecogido = prodView.reduce((s, p) => s + p.udsRecogidas, 0);
+
+              if (produccionData.length === 0) return (
+                <div style={{ textAlign: "center", padding: "40px 20px", color: "#A2C2D0" }}>
+                  <I.Store s={40} />
+                  <p style={{ marginTop: 12, fontSize: 14 }}>No hay producción para este día</p>
+                  <button title="Cargar datos de producción" onClick={() => loadProduccion()} style={{
+                    marginTop: 8, padding: "8px 16px", borderRadius: 8,
+                    border: "1px solid #A2C2D0", background: "#fff",
+                    cursor: "pointer", fontSize: 12, color: "#4F6867", fontWeight: 600,
+                  }}>Cargar</button>
                 </div>
+              );
 
-                {produccionData.map(prod => (
-                  <div key={prod.nombre} style={{
-                    background: "#fff", borderRadius: 14, border: "1px solid #A2C2D0",
-                    marginBottom: 8, overflow: "hidden",
-                    boxShadow: "0 1px 4px rgba(60,50,30,0.04)",
+              return (
+                <div>
+                  {/* Summary */}
+                  <div style={{
+                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                    padding: "10px 14px", marginBottom: 12,
+                    background: "#E1F2FC", borderRadius: 10,
                   }}>
-                    {/* Product row */}
-                    <button title={expandedProduct === prod.nombre ? "Contraer producto" : "Ver pedidos de este producto"} onClick={() => setExpandedProduct(expandedProduct === prod.nombre ? null : prod.nombre)}
-                      style={{
-                        width: "100%", padding: "14px 16px",
-                        border: "none", background: "transparent",
-                        cursor: "pointer", display: "flex",
-                        alignItems: "center", justifyContent: "space-between",
-                        textAlign: "left",
-                      }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <I.Box s={18} />
-                        <span style={{ fontSize: 15, fontWeight: 600, color: "#1B1C39" }}>
-                          {prod.nombre}
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#4F6867" }}>
+                      {prodView.filter(p => p.udsFiltradas > 0).length} {prodView.filter(p => p.udsFiltradas > 0).length === 1 ? "producto" : "productos"}
+                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {totalRecogido > 0 && (
+                        <span style={{ fontSize: 11, color: "#A2C2D0", textDecoration: "line-through" }}>
+                          {totalRecogido} recogidas
                         </span>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{
-                          fontSize: 18, fontWeight: 800, color: "#4F6867",
-                          fontFamily: "'Roboto Condensed', sans-serif",
-                        }}>
-                          {prod.totalUnidades} uds
-                        </span>
-                        <span style={{
-                          fontSize: 10, color: "#A2C2D0",
-                          transform: expandedProduct === prod.nombre ? "rotate(90deg)" : "rotate(0deg)",
-                          transition: "transform 0.2s",
-                        }}>▶</span>
-                      </div>
-                    </button>
-
-                    {/* Expanded: pedidos list */}
-                    {expandedProduct === prod.nombre && (
-                      <div style={{
-                        borderTop: "1px solid #E1F2FC",
-                        padding: "8px 16px 12px",
-                        background: "#FAFAFA",
-                      }}>
-                        <p style={{ fontSize: 10, color: "#A2C2D0", margin: "0 0 6px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                          Pedidos con {prod.nombre}:
-                        </p>
-                        {prod.pedidos.map((ped, i) => (
-                          <button title="Ver detalle del pedido" key={ped.pedidoId + "-" + i} onClick={() => setSelectedPedido(ped)}
-                            style={{
-                              width: "100%", padding: "10px 12px",
-                              border: "none",
-                              borderBottom: i < prod.pedidos.length - 1 ? "1px solid #E1F2FC" : "none",
-                              background: "transparent", cursor: "pointer",
-                              display: "flex", alignItems: "center", justifyContent: "space-between",
-                              textAlign: "left", fontSize: 13,
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.background = "#E1F2FC"}
-                            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                          >
-                            <div>
-                              <span style={{ fontWeight: 600, color: "#1B1C39" }}>
-                                {ped.cliente || (ped.pedidoTitulo || "").replace(/^Pedido\s+/i, "") || "Sin nombre"}
-                              </span>
-                              {ped.pagado && (
-                                <span style={{
-                                  fontSize: 9, padding: "1px 5px", borderRadius: 3,
-                                  background: "#E1F2FC", color: "#3D5655", fontWeight: 700,
-                                  marginLeft: 6,
-                                }}>PAGADO</span>
-                              )}
-                              {ped.notas && (
-                                <div style={{ fontSize: 11, color: "#A2C2D0", fontStyle: "italic", marginTop: 2 }}>
-                                  {ped.notas}
-                                </div>
-                              )}
-                            </div>
-                            <span style={{ fontWeight: 700, color: "#4F6867" }}>
-                              {ped.unidades} ud{ped.unidades !== 1 ? "s" : ""}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                      )}
+                      <span style={{ fontSize: 14, fontWeight: 800, color: "#1B1C39", fontFamily: "'Roboto Condensed', sans-serif" }}>
+                        {totalPendiente} uds pendientes
+                      </span>
+                    </div>
                   </div>
-                ))}
-              </div>
-            )}
+
+                  {prodView.map(prod => {
+                    if (prod.udsFiltradas === 0 && ocultarRecogidos) return null;
+                    return (
+                    <div key={prod.nombre} style={{
+                      background: "#fff", borderRadius: 14, border: "1px solid #A2C2D0",
+                      marginBottom: 8, overflow: "hidden",
+                      boxShadow: "0 1px 4px rgba(60,50,30,0.04)",
+                    }}>
+                      {/* Product row */}
+                      <button title={expandedProduct === prod.nombre ? "Contraer producto" : "Ver pedidos de este producto"} onClick={() => setExpandedProduct(expandedProduct === prod.nombre ? null : prod.nombre)}
+                        style={{
+                          width: "100%", padding: "14px 16px",
+                          border: "none", background: "transparent",
+                          cursor: "pointer", display: "flex",
+                          alignItems: "center", justifyContent: "space-between",
+                          textAlign: "left",
+                        }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <I.Box s={18} />
+                          <span style={{ fontSize: 15, fontWeight: 600, color: "#1B1C39" }}>
+                            {prod.nombre}
+                          </span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          {prod.udsRecogidas > 0 && (
+                            <span style={{ fontSize: 12, color: "#A2C2D0", textDecoration: "line-through" }}>
+                              {prod.udsRecogidas}
+                            </span>
+                          )}
+                          <span style={{
+                            fontSize: 18, fontWeight: 800, color: "#4F6867",
+                            fontFamily: "'Roboto Condensed', sans-serif",
+                          }}>
+                            {prod.udsFiltradas} uds
+                          </span>
+                          <span style={{
+                            fontSize: 10, color: "#A2C2D0",
+                            transform: expandedProduct === prod.nombre ? "rotate(90deg)" : "rotate(0deg)",
+                            transition: "transform 0.2s",
+                          }}>▶</span>
+                        </div>
+                      </button>
+
+                      {/* Expanded: pedidos list */}
+                      {expandedProduct === prod.nombre && (
+                        <div style={{
+                          borderTop: "1px solid #E1F2FC",
+                          padding: "8px 16px 12px",
+                          background: "#FAFAFA",
+                        }}>
+                          <p style={{ fontSize: 10, color: "#A2C2D0", margin: "0 0 6px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                            Pedidos con {prod.nombre}:
+                          </p>
+                          {prod.pedidos.map((ped, i) => (
+                            <button title="Ver detalle del pedido" key={ped.pedidoId + "-" + i} onClick={() => setSelectedPedido(ped)}
+                              style={{
+                                width: "100%", padding: "10px 12px",
+                                border: "none",
+                                borderBottom: i < prod.pedidos.length - 1 ? "1px solid #E1F2FC" : "none",
+                                background: "transparent", cursor: "pointer",
+                                display: "flex", alignItems: "center", justifyContent: "space-between",
+                                textAlign: "left", fontSize: 13,
+                                opacity: ped.recogido ? 0.5 : 1,
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.background = "#E1F2FC"}
+                              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                            >
+                              <div>
+                                <span style={{ fontWeight: 600, color: "#1B1C39", textDecoration: ped.recogido ? "line-through" : "none" }}>
+                                  {ped.cliente || (ped.pedidoTitulo || "").replace(/^Pedido\s+/i, "") || "Sin nombre"}
+                                </span>
+                                {ped.recogido && (
+                                  <span style={{
+                                    fontSize: 9, padding: "1px 5px", borderRadius: 3,
+                                    background: "#d4edda", color: "#155724", fontWeight: 700,
+                                    marginLeft: 6,
+                                  }}>RECOGIDO</span>
+                                )}
+                                {ped.pagado && !ped.recogido && (
+                                  <span style={{
+                                    fontSize: 9, padding: "1px 5px", borderRadius: 3,
+                                    background: "#E1F2FC", color: "#3D5655", fontWeight: 700,
+                                    marginLeft: 6,
+                                  }}>PAGADO</span>
+                                )}
+                                {ped.notas && (
+                                  <div style={{ fontSize: 11, color: "#A2C2D0", fontStyle: "italic", marginTop: 2 }}>
+                                    {ped.notas}
+                                  </div>
+                                )}
+                              </div>
+                              <span style={{ fontWeight: 700, color: ped.recogido ? "#A2C2D0" : "#4F6867", textDecoration: ped.recogido ? "line-through" : "none" }}>
+                                {ped.unidades} ud{ped.unidades !== 1 ? "s" : ""}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         )}
 
