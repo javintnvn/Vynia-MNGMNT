@@ -1269,7 +1269,7 @@ export default function VyniaApp() {
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {fichaClientePedidos.map(p => (
-                      <div key={p.id} onClick={() => { setPedidoFromFicha(true); setSelectedPedido({ ...p, pedidoTitulo: p.nombre, telefono: p.tel }); }}
+                      <div key={p.id} onClick={() => { setPedidoFromFicha(true); setSelectedPedido({ ...p, pedidoTitulo: p.nombre, telefono: p.tel, productos: typeof p.productos === "string" ? parseProductsStr(p.productos) : (Array.isArray(p.productos) ? p.productos : []) }); }}
                         style={{
                           background: "#FDFBF7", borderRadius: 10,
                           border: `1px solid ${p.recogido ? "#d4cec6" : "#A2C2D0"}`,
@@ -2192,67 +2192,91 @@ export default function VyniaApp() {
               maxHeight: isDesktop ? "85vh" : "80vh", overflowY: "auto",
               animation: "modalIn 0.22s ease-out",
             }} onClick={e => e.stopPropagation()}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1B1C39", fontFamily: "'Roboto Condensed', sans-serif", overflowWrap: "break-word", wordBreak: "break-word" }}>
-                    {selectedPedido.cliente || (selectedPedido.pedidoTitulo || "").replace(/^Pedido\s+/i, "") || "Pedido"}
-                  </h3>
-                  {selectedPedido.numPedido > 0 && (
-                    <span style={{ fontSize: 11, color: "#A2C2D0" }}>Pedido #{selectedPedido.numPedido}</span>
-                  )}
+              {/* ═══ HEADER: Avatar + Name + Badges + Close ═══ */}
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                <div style={{
+                  width: 44, height: 44, borderRadius: 12,
+                  background: "linear-gradient(135deg, #4F6867, #3D5655)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "#fff", fontSize: 18, fontWeight: 800,
+                  fontFamily: "'Roboto Condensed', sans-serif",
+                  flexShrink: 0,
+                }}>
+                  {(selectedPedido.cliente || selectedPedido.pedidoTitulo || "P").charAt(0).toUpperCase()}
                 </div>
-                {pedidoFromFicha && (
-                  <button title="Volver a ficha de cliente" onClick={() => { setSelectedPedido(null); setEditingFecha(null); setConfirmCancel(null); setEditingProductos(false); setEditLineas([]); setEditSearchProd(""); setPedidoFromFicha(false); }} style={{
-                    border: "none", background: "transparent", cursor: "pointer",
-                    fontSize: 12, color: "#4F6867", fontWeight: 600, padding: "0 8px 0 0",
-                    fontFamily: "'Roboto Condensed', sans-serif",
-                  }}>← Cliente</button>
-                )}
-                <button title="Cerrar detalle" onClick={() => { setSelectedPedido(null); setEditingFecha(null); setConfirmCancel(null); setEditingProductos(false); setEditLineas([]); setEditSearchProd(""); setPedidoFromFicha(false); }} style={{
-                  border: "none", background: "transparent", cursor: "pointer",
-                  fontSize: 20, color: "#A2C2D0", padding: "0 4px",
-                }}>×</button>
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {selectedPedido.fecha && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
-                    <I.Cal s={14} />
-                    <span style={{ color: "#4F6867" }}>{fmt.date(selectedPedido.fecha)}</span>
-                    {(selectedPedido.hora || fmt.time(selectedPedido.fecha)) && (
-                      <span style={{ color: "#1B1C39", fontWeight: 600 }}>
-                        {selectedPedido.hora || fmt.time(selectedPedido.fecha)}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "#1B1C39", fontFamily: "'Roboto Condensed', sans-serif", overflowWrap: "break-word", wordBreak: "break-word" }}>
+                      {selectedPedido.cliente || (selectedPedido.pedidoTitulo || "").replace(/^Pedido\s+/i, "") || "Pedido"}
+                    </h3>
+                    {selectedPedido.numPedido > 0 && (
+                      <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 4, background: "#E1F2FC", color: "#4F6867", fontWeight: 700, border: "0.5px solid rgba(162,194,208,0.4)" }}>
+                        #{selectedPedido.numPedido}
                       </span>
                     )}
                   </div>
-                )}
-
-                {(selectedPedido.telefono || selectedPedido.tel) && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
-                    <I.Phone s={14} />
-                    <span onClick={(e) => openPhoneMenu(selectedPedido.telefono || selectedPedido.tel, e)} style={{ color: "#1B1C39", cursor: "pointer" }}>
-                      {selectedPedido.telefono || selectedPedido.tel}
-                    </span>
+                  {/* Status badges inline under name */}
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 4 }}>
+                    {selectedPedido.pagado && (
+                      <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#E1F2FC", color: "#3D5655", fontWeight: 700, border: "0.5px solid rgba(79,104,103,0.15)" }}>PAGADO</span>
+                    )}
+                    {selectedPedido.recogido && (
+                      <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#E1F2FC", color: "#3D5655", fontWeight: 700, border: "0.5px solid rgba(79,104,103,0.15)" }}>RECOGIDO</span>
+                    )}
+                    {selectedPedido.incidencia && (
+                      <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#FDE8E5", color: "#C62828", fontWeight: 700, border: "0.5px solid rgba(198,40,40,0.15)" }}>INCIDENCIA</span>
+                    )}
+                    {selectedPedido.noAcude && (
+                      <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#FDE8E5", color: "#C62828", fontWeight: 700, border: "0.5px solid rgba(198,40,40,0.15)" }}>NO ACUDE</span>
+                    )}
                   </div>
-                )}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                  {pedidoFromFicha && (
+                    <button title="Volver a ficha de cliente" onClick={() => { setSelectedPedido(null); setEditingFecha(null); setConfirmCancel(null); setEditingProductos(false); setEditLineas([]); setEditSearchProd(""); setPedidoFromFicha(false); }} style={{
+                      border: "none", background: "#E1F2FC", cursor: "pointer",
+                      fontSize: 11, color: "#4F6867", fontWeight: 600, padding: "5px 10px",
+                      borderRadius: 8, fontFamily: "'Roboto Condensed', sans-serif",
+                    }}>← Cliente</button>
+                  )}
+                  <button title="Cerrar detalle" onClick={() => { setSelectedPedido(null); setEditingFecha(null); setConfirmCancel(null); setEditingProductos(false); setEditLineas([]); setEditSearchProd(""); setPedidoFromFicha(false); }} style={{
+                    width: 32, height: 32, border: "none", borderRadius: 10,
+                    background: "rgba(162,194,208,0.15)", cursor: "pointer",
+                    fontSize: 16, color: "#A2C2D0", display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>×</button>
+                </div>
+              </div>
 
-                {/* Badges */}
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {selectedPedido.pagado && (
-                    <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: "#E1F2FC", color: "#3D5655", fontWeight: 700 }}>PAGADO</span>
+              {/* ═══ INFO SECTION: Date + Phone ═══ */}
+              <div style={{
+                background: "rgba(239,233,228,0.5)", borderRadius: 14, padding: "10px 14px",
+                marginBottom: 12, border: "1px solid rgba(162,194,208,0.12)",
+              }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {selectedPedido.fecha && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                      <I.Cal s={14} />
+                      <span style={{ color: "#4F6867" }}>{fmt.date(selectedPedido.fecha)}</span>
+                      {(selectedPedido.hora || fmt.time(selectedPedido.fecha)) && (
+                        <span style={{ color: "#1B1C39", fontWeight: 600 }}>
+                          {selectedPedido.hora || fmt.time(selectedPedido.fecha)}
+                        </span>
+                      )}
+                    </div>
                   )}
-                  {selectedPedido.recogido && (
-                    <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: "#E1F2FC", color: "#3D5655", fontWeight: 700 }}>RECOGIDO</span>
-                  )}
-                  {selectedPedido.incidencia && (
-                    <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: "#FDE8E5", color: "#C62828", fontWeight: 700 }}>INCIDENCIA</span>
-                  )}
-                  {selectedPedido.noAcude && (
-                    <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: "#FDE8E5", color: "#C62828", fontWeight: 700 }}>NO ACUDE</span>
+                  {(selectedPedido.telefono || selectedPedido.tel) && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                      <I.Phone s={14} />
+                      <span onClick={(e) => openPhoneMenu(selectedPedido.telefono || selectedPedido.tel, e)} style={{ color: "#1B1C39", cursor: "pointer" }}>
+                        {selectedPedido.telefono || selectedPedido.tel}
+                      </span>
+                    </div>
                   )}
                 </div>
+              </div>
 
-                {/* Full product list / editor */}
+              {/* ═══ PRODUCTS SECTION ═══ */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {editingProductos ? (
                   <div style={{ background: "#F5F5F5", borderRadius: 10, padding: "10px 14px" }}>
                     <p style={{ fontSize: 10, color: "#4F6867", margin: "0 0 8px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
@@ -2325,24 +2349,63 @@ export default function VyniaApp() {
                   </div>
                 ) : (
                   <>
-                    {selectedPedido.productos && selectedPedido.productos.length > 0 && (
-                      <div style={{ background: "#F5F5F5", borderRadius: 10, padding: "10px 14px" }}>
-                        <p style={{ fontSize: 10, color: "#A2C2D0", margin: "0 0 6px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                          Productos del pedido
-                        </p>
-                        {selectedPedido.productos.map((item, i) => (
-                          <div key={i} style={{
-                            display: "flex", justifyContent: "space-between", alignItems: "center",
-                            padding: "5px 0",
-                            borderBottom: i < selectedPedido.productos.length - 1 ? "1px solid #E1F2FC" : "none",
-                            fontSize: 13,
-                          }}>
-                            <span style={{ color: "#1B1C39" }}>{item.nombre}</span>
-                            <span style={{ fontWeight: 700, color: "#4F6867" }}>{item.unidades} ud{item.unidades !== 1 ? "s" : ""}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <div style={{
+                      background: "rgba(239,233,228,0.5)", borderRadius: 14, padding: "10px 14px",
+                      border: "1px solid rgba(162,194,208,0.12)",
+                    }}>
+                      <p style={{ fontSize: 10, color: "#4F6867", margin: "0 0 8px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                        Productos del pedido
+                      </p>
+                      {selectedPedido.productos && Array.isArray(selectedPedido.productos) && selectedPedido.productos.length > 0 ? (
+                        <>
+                          {selectedPedido.productos.map((item, i) => {
+                            const precio = PRICE_MAP[(item.nombre || "").toLowerCase().trim()] || 0;
+                            return (
+                              <div key={i} style={{
+                                display: "flex", justifyContent: "space-between", alignItems: "center",
+                                padding: "7px 0",
+                                borderBottom: i < selectedPedido.productos.length - 1 ? "1px solid rgba(162,194,208,0.15)" : "none",
+                              }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                  <span style={{ fontSize: 13, color: "#1B1C39", fontWeight: 500 }}>{item.nombre}</span>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                  {precio > 0 && <span style={{ fontSize: 11, color: "#A2C2D0" }}>{(precio * (item.unidades || 0)).toFixed(2)}€</span>}
+                                  <span style={{
+                                    fontSize: 11, fontWeight: 700, color: "#4F6867",
+                                    background: "#E1F2FC", padding: "2px 8px", borderRadius: 6,
+                                  }}>×{item.unidades}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {(() => {
+                            const total = (selectedPedido.productos || []).reduce((s, item) => {
+                              const precio = PRICE_MAP[(item.nombre || "").toLowerCase().trim()] || 0;
+                              return s + precio * (item.unidades || 0);
+                            }, 0);
+                            return total > 0 ? (
+                              <div style={{
+                                display: "flex", justifyContent: "space-between", alignItems: "center",
+                                paddingTop: 8, marginTop: 4, borderTop: "1px solid rgba(79,104,103,0.15)",
+                              }}>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: "#4F6867", textTransform: "uppercase", letterSpacing: "0.04em" }}>Total</span>
+                                <span style={{ fontSize: 16, fontWeight: 800, color: "#1B1C39", fontFamily: "'Roboto Condensed', sans-serif" }}>{total.toFixed(2)}€</span>
+                              </div>
+                            ) : null;
+                          })()}
+                        </>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "2px 0" }}>
+                          {[1, 2, 3].map(n => (
+                            <div key={n} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <div style={{ width: `${55 + n * 12}px`, height: 12, borderRadius: 4, background: "#A2C2D0", animation: "skeletonPulse 1.2s ease-in-out infinite", animationDelay: `${n * 0.15}s` }} />
+                              <div style={{ width: 32, height: 12, borderRadius: 4, background: "#A2C2D0", animation: "skeletonPulse 1.2s ease-in-out infinite", animationDelay: `${n * 0.15 + 0.1}s` }} />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <button onClick={() => {
                       const initial = (selectedPedido.productos || []).map(p => {
                         const cat = catalogo.find(c => c.nombre.toLowerCase().trim() === (p.nombre || "").toLowerCase().trim());
@@ -2350,68 +2413,79 @@ export default function VyniaApp() {
                       });
                       setEditLineas(initial);
                       setEditingProductos(true);
-                    }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 9, border: "1.5px solid #A2C2D0", background: "transparent", color: "#4F6867", fontSize: 12, fontWeight: 600, cursor: "pointer", width: "100%" }}>
+                    }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 10, border: "1px solid rgba(162,194,208,0.25)", background: "transparent", color: "#4F6867", fontSize: 12, fontWeight: 600, cursor: "pointer", width: "100%", transition: "background 0.15s" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(225,242,252,0.5)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                       <I.Edit s={13} /> Modificar pedido
                     </button>
                   </>
                 )}
 
                 {selectedPedido.notas && (
-                  <div style={{ fontSize: 12, color: "#1B1C39", fontStyle: "italic", padding: "8px 12px", background: "#EFE9E4", borderRadius: 8, overflowWrap: "break-word", wordBreak: "break-word" }}>
+                  <div style={{ fontSize: 12, color: "#1B1C39", fontStyle: "italic", padding: "10px 14px", background: "rgba(239,233,228,0.5)", borderRadius: 12, overflowWrap: "break-word", wordBreak: "break-word", border: "1px solid rgba(162,194,208,0.12)" }}>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: "#A2C2D0", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 4, fontStyle: "normal" }}>Notas</span>
                     {selectedPedido.notas}
                   </div>
                 )}
 
-                {/* ── Ver en Notion ── */}
-                <a href={`https://www.notion.so/${selectedPedido.id.replace(/-/g, "")}`}
-                  target="_blank" rel="noopener noreferrer"
-                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 9, border: "1.5px solid #A2C2D0", background: "transparent", color: "#4F6867", fontSize: 12, fontWeight: 600, cursor: "pointer", width: "100%", textDecoration: "none", boxSizing: "border-box" }}>
-                  <I.Ext s={13} /> Ver en Notion
-                </a>
+                {/* ═══ ACTIONS SECTION ═══ */}
+                <div style={{ borderTop: "1px solid rgba(162,194,208,0.15)", paddingTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+                  <a href={`https://www.notion.so/${selectedPedido.id.replace(/-/g, "")}`}
+                    target="_blank" rel="noopener noreferrer"
+                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 10, textDecoration: "none", color: "#4F6867", fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "background 0.15s" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(225,242,252,0.5)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    <I.Ext s={15} /> Ver en Notion
+                  </a>
 
-                {/* ── Change date ── */}
-                {editingFecha?.pedidoId === selectedPedido.id ? (
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <input type="date" lang="es" value={editingFecha.newFecha}
-                      onChange={e => setEditingFecha(ef => ({ ...ef, newFecha: e.target.value }))}
-                      style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1.5px solid #A2C2D0", fontSize: 13, fontFamily: "'Roboto Condensed', sans-serif" }} />
-                    <button onClick={() => cambiarFechaPedido(selectedPedido, editingFecha.newFecha)}
-                      style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #4F6867, #3D5655)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                      Guardar
-                    </button>
-                    <button onClick={() => setEditingFecha(null)}
-                      style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #A2C2D0", background: "transparent", color: "#A2C2D0", fontSize: 12, cursor: "pointer" }}>
-                      ×
-                    </button>
-                  </div>
-                ) : (
-                  <button onClick={() => setEditingFecha({ pedidoId: selectedPedido.id, newFecha: (selectedPedido.fecha || "").split("T")[0] || fmt.todayISO() })}
-                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 9, border: "1.5px solid #A2C2D0", background: "transparent", color: "#4F6867", fontSize: 12, fontWeight: 600, cursor: "pointer", width: "100%" }}>
-                    <I.Cal s={13} /> Cambiar fecha de entrega
-                  </button>
-                )}
-
-                {/* ── Cancel pedido ── */}
-                {confirmCancel === selectedPedido.id ? (
-                  <div style={{ background: "#FDE8E5", borderRadius: 9, padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: 13, color: "#C62828", fontWeight: 600 }}>¿Cancelar este pedido?</span>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button onClick={() => cancelarPedido(selectedPedido)}
-                        style={{ padding: "6px 14px", borderRadius: 7, border: "none", background: "#C62828", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                        Sí, cancelar
+                  {editingFecha?.pedidoId === selectedPedido.id ? (
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "4px 0" }}>
+                      <input type="date" lang="es" value={editingFecha.newFecha}
+                        onChange={e => setEditingFecha(ef => ({ ...ef, newFecha: e.target.value }))}
+                        style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1.5px solid #A2C2D0", fontSize: 13, fontFamily: "'Roboto Condensed', sans-serif" }} />
+                      <button onClick={() => cambiarFechaPedido(selectedPedido, editingFecha.newFecha)}
+                        style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #4F6867, #3D5655)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                        Guardar
                       </button>
-                      <button onClick={() => setConfirmCancel(null)}
-                        style={{ padding: "6px 10px", borderRadius: 7, border: "1px solid #C62828", background: "transparent", color: "#C62828", fontSize: 12, cursor: "pointer" }}>
-                        No
+                      <button onClick={() => setEditingFecha(null)}
+                        style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #A2C2D0", background: "transparent", color: "#A2C2D0", fontSize: 12, cursor: "pointer" }}>
+                        ×
                       </button>
                     </div>
-                  </div>
-                ) : (
-                  <button onClick={() => setConfirmCancel(selectedPedido.id)}
-                    style={{ padding: "9px 14px", borderRadius: 9, border: "1.5px solid #EF9A9A", background: "transparent", color: "#C62828", fontSize: 12, fontWeight: 600, cursor: "pointer", width: "100%" }}>
-                    Cancelar pedido
-                  </button>
-                )}
+                  ) : (
+                    <button onClick={() => setEditingFecha({ pedidoId: selectedPedido.id, newFecha: (selectedPedido.fecha || "").split("T")[0] || fmt.todayISO() })}
+                      style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#4F6867", fontSize: 13, fontWeight: 500, cursor: "pointer", width: "100%", transition: "background 0.15s" }}
+                      onMouseEnter={e => e.currentTarget.style.background = "rgba(225,242,252,0.5)"}
+                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                      <I.Cal s={15} /> Cambiar fecha de entrega
+                    </button>
+                  )}
+
+                  <div style={{ height: 1, background: "rgba(162,194,208,0.12)", margin: "2px 12px" }} />
+
+                  {confirmCancel === selectedPedido.id ? (
+                    <div style={{ background: "#FDE8E5", borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", animation: "popoverIn 0.15s ease-out" }}>
+                      <span style={{ fontSize: 13, color: "#C62828", fontWeight: 600 }}>¿Cancelar?</span>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button onClick={() => cancelarPedido(selectedPedido)}
+                          style={{ padding: "6px 14px", borderRadius: 8, border: "none", background: "#C62828", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                          Sí, cancelar
+                        </button>
+                        <button onClick={() => setConfirmCancel(null)}
+                          style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #C62828", background: "transparent", color: "#C62828", fontSize: 12, cursor: "pointer" }}>
+                          No
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => setConfirmCancel(selectedPedido.id)}
+                      style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#C62828", fontSize: 13, fontWeight: 500, cursor: "pointer", width: "100%", transition: "background 0.15s", opacity: 0.7 }}
+                      onMouseEnter={e => { e.currentTarget.style.background = "rgba(253,232,229,0.5)"; e.currentTarget.style.opacity = "1"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.opacity = "0.7"; }}>
+                      Cancelar pedido
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -2578,6 +2652,10 @@ export default function VyniaApp() {
         @keyframes modalIn {
           from { opacity: 0; transform: scale(0.96) translateY(8px); }
           to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes skeletonPulse {
+          0%, 100% { opacity: 0.3; }
+          50% { opacity: 0.7; }
         }
         @keyframes shine-pulse {
           0% { background-position: 0% 0%; }
