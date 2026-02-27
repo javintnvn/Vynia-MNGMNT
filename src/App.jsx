@@ -266,7 +266,11 @@ export default function VyniaApp() {
   const [filtro, setFiltro] = useState("pendientes"); // pendientes | hoy | todos | recogidos
   const [filtroFecha, setFiltroFecha] = useState(fmt.todayISO()); // null = all dates
   const [busqueda, setBusqueda] = useState("");
-  const [allPedidos, setAllPedidos] = useState(null); // loaded on search
+  const [searchResults, setSearchResults] = useState([]); // clientes found
+  const [fichaCliente, setFichaCliente] = useState(null); // selected client card
+  const [fichaClientePedidos, setFichaClientePedidos] = useState([]);
+  const [fichaClienteLoading, setFichaClienteLoading] = useState(false);
+  const [pedidoFromFicha, setPedidoFromFicha] = useState(false);
   const busquedaTimer = useRef(null);
   const clienteWrapperRef = useRef(null);
 
@@ -309,41 +313,50 @@ export default function VyniaApp() {
     toastTimer.current = setTimeout(() => setToast(null), 3500);
   }, []);
 
-  // ─── SEARCH (independent of filters — loads ALL pedidos + searches clientes) ───
-  const [searchClienteIds, setSearchClienteIds] = useState(new Set());
+  // ─── SEARCH (searches Clientes DB by name, phone, email) ───
   const onBusquedaChange = (val) => {
     setBusqueda(val);
     if (busquedaTimer.current) clearTimeout(busquedaTimer.current);
-    if (!val.trim()) { setSearchClienteIds(new Set()); return; }
-    // Load all pedidos immediately if not cached
-    if (!allPedidos && apiMode !== "demo") {
-      (async () => {
-        try {
-          const data = await notion.loadPedidosByDate(null);
-          const mapped = (Array.isArray(data) ? data : []).map(p => ({
-            id: p.id, nombre: p.titulo || "", fecha: p.fecha || "",
-            recogido: !!p.recogido, noAcude: !!p.noAcude, pagado: !!p.pagado,
-            incidencia: !!p.incidencia, notas: p.notas || "", importe: p.importe || 0,
-            productos: p.productos || "", tel: p.telefono || "", numPedido: p.numPedido || 0,
-            hora: p.fecha?.includes("T") ? p.fecha.split("T")[1]?.substring(0, 5) : "",
-            cliente: p.cliente || (p.titulo || "").replace(/^Pedido\s+/i, ""),
-            clienteId: p.clienteId || null,
-          }));
-          setAllPedidos(mapped);
-        } catch { /* ignore */ }
-      })();
-    }
-    // Search clientes by name (debounced)
+    if (!val.trim() || val.trim().length < 2) { setSearchResults([]); setFichaCliente(null); return; }
+    setFichaCliente(null);
     busquedaTimer.current = setTimeout(async () => {
-      if (apiMode === "demo" || val.trim().length < 2) { setSearchClienteIds(new Set()); return; }
+      if (apiMode === "demo") return;
       try {
-        const clientes = await notion.searchClientes(val.trim());
-        setSearchClienteIds(new Set((Array.isArray(clientes) ? clientes : []).map(c => c.id)));
-      } catch { setSearchClienteIds(new Set()); }
+        const results = await notion.searchClientes(val.trim());
+        setSearchResults(Array.isArray(results) ? results : []);
+      } catch { setSearchResults([]); }
     }, 300);
   };
+
+  const openFichaCliente = async (cliente) => {
+    setFichaCliente(cliente);
+    setSearchResults([]);
+    setBusqueda(cliente.nombre);
+    setFichaClienteLoading(true);
+    try {
+      const data = await notion.loadPedidosByCliente(cliente.id);
+      const mapped = (Array.isArray(data) ? data : []).map(p => ({
+        id: p.id, nombre: p.titulo || "", fecha: p.fecha || "",
+        recogido: !!p.recogido, noAcude: !!p.noAcude, pagado: !!p.pagado,
+        incidencia: !!p.incidencia, notas: p.notas || "",
+        tel: p.telefono || "", numPedido: p.numPedido || 0,
+        hora: p.fecha?.includes("T") ? p.fecha.split("T")[1]?.substring(0, 5) : "",
+        cliente: p.cliente || cliente.nombre, clienteId: p.clienteId || cliente.id,
+      }));
+      setFichaClientePedidos(mapped);
+    } catch { setFichaClientePedidos([]); }
+    setFichaClienteLoading(false);
+  };
+
+  const closeFicha = () => {
+    setFichaCliente(null);
+    setFichaClientePedidos([]);
+    setBusqueda("");
+    setSearchResults([]);
+  };
+
   // Invalidate caches when data changes
-  const invalidateSearchCache = () => { setAllPedidos(null); setSearchClienteIds(new Set()); invalidateApiCache(); };
+  const invalidateSearchCache = () => { invalidateApiCache(); };
   const invalidateProduccion = (pedidoFecha) => {
     // Only invalidate if the pedido's date matches the currently loaded produccion date
     const pedidoDate = (pedidoFecha || "").split("T")[0];
@@ -433,11 +446,12 @@ export default function VyniaApp() {
       .catch(() => { /* fallback silently */ });
   }, [apiMode]);
 
-  // ─── Close client suggestions on click outside ───
+  // ─── Close dropdowns on click outside ───
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (clienteWrapperRef.current && !clienteWrapperRef.current.contains(e.target)) {
         setClienteSuggestions([]);
+        setSearchResults([]);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -817,24 +831,11 @@ export default function VyniaApp() {
   }, [pedidos]);
 
   // ─── FILTERED PEDIDOS (memoized) ───
-  const isSearching = busqueda.trim().length > 0;
   const pedidosFiltrados = useMemo(() => {
-    if (isSearching) {
-      const q = busqueda.toLowerCase();
-      const source = allPedidos || pedidos;
-      return source.filter(p =>
-        (p.cliente || "").toLowerCase().includes(q)
-        || (p.nombre || "").toLowerCase().includes(q)
-        || (p.tel || "").includes(q)
-        || (p.notas || "").toLowerCase().includes(q)
-        || String(p.numPedido || "").includes(q)
-        || (searchClienteIds.size > 0 && p.clienteId && searchClienteIds.has(p.clienteId))
-      );
-    }
     if (filtro === "pendientes") return pedidos.filter(p => !p.recogido && !p.noAcude);
     if (filtro === "recogidos") return pedidos.filter(p => p.recogido);
     return pedidos;
-  }, [pedidos, allPedidos, busqueda, isSearching, filtro, searchClienteIds]);
+  }, [pedidos, filtro]);
 
   // Group by date (memoized)
   const { groups, sortedDates } = useMemo(() => {
@@ -1085,7 +1086,6 @@ export default function VyniaApp() {
                 { label: "Hoy", val: fmt.todayISO() },
                 { label: "Mañana", val: fmt.tomorrowISO() },
                 { label: "Pasado", val: fmt.dayAfterISO() },
-                { label: "Todos", val: null },
               ].map(d => {
                 const sel = filtroFecha === d.val;
                 return (
@@ -1146,11 +1146,11 @@ export default function VyniaApp() {
                   );
                 })}
               </div>
-              <div style={{ position: "relative", flex: 1, minWidth: 180 }}>
+              <div ref={clienteWrapperRef} style={{ position: "relative", flex: 1, minWidth: 180 }}>
                 <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#A2C2D0", pointerEvents: "none" }}>
                   <I.Search s={16} />
                 </div>
-                <input placeholder="Buscar por cliente, teléfono, notas..."
+                <input placeholder="Buscar cliente..."
                   value={busqueda} onChange={e => onBusquedaChange(e.target.value)}
                   style={{
                     width: "100%", padding: "8px 10px 8px 36px", borderRadius: 20,
@@ -1159,9 +1159,132 @@ export default function VyniaApp() {
                     outline: "none", boxSizing: "border-box",
                     fontFamily: "'Roboto Condensed', sans-serif",
                   }} />
+                {/* Search results dropdown */}
+                {searchResults.length > 0 && !fichaCliente && (
+                  <div style={{
+                    position: "absolute", top: "100%", left: 0, right: 0,
+                    background: "#fff", borderRadius: 12, marginTop: 4,
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+                    border: "1px solid #d4cec6", zIndex: 60,
+                    maxHeight: 240, overflowY: "auto",
+                  }}>
+                    {searchResults.map(c => (
+                      <div key={c.id} onClick={() => openFichaCliente(c)}
+                        style={{
+                          padding: "10px 14px", cursor: "pointer",
+                          borderBottom: "1px solid #f0ece6",
+                          transition: "background 0.1s",
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = "#F5F0EB"}
+                        onMouseLeave={e => e.currentTarget.style.background = "#fff"}
+                      >
+                        <div style={{ fontSize: 14, fontWeight: 600, color: "#1B1C39" }}>{c.nombre}</div>
+                        <div style={{ fontSize: 12, color: "#4F6867", marginTop: 2 }}>
+                          {[c.telefono, c.email].filter(Boolean).join(" · ") || "Sin datos de contacto"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
+            {/* ── Ficha cliente ── */}
+            {fichaCliente ? (
+              <div style={{
+                background: "#fff", borderRadius: 14, border: "1px solid #A2C2D0",
+                padding: "16px 18px", marginBottom: 16,
+              }}>
+                <button onClick={closeFicha} style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  fontSize: 13, color: "#4F6867", fontWeight: 600, padding: 0,
+                  marginBottom: 12, display: "flex", alignItems: "center", gap: 4,
+                  fontFamily: "'Roboto Condensed', sans-serif",
+                }}>
+                  ← Volver
+                </button>
+                <div style={{ marginBottom: 14 }}>
+                  <h2 style={{
+                    margin: 0, fontSize: 20, fontWeight: 700, color: "#1B1C39",
+                    fontFamily: "'Roboto Condensed', sans-serif",
+                  }}>{fichaCliente.nombre}</h2>
+                  <div style={{ display: "flex", gap: 16, marginTop: 6, flexWrap: "wrap" }}>
+                    {fichaCliente.telefono && (
+                      <span style={{ fontSize: 13, color: "#4F6867", display: "flex", alignItems: "center", gap: 4 }}>
+                        <I.Phone /> {fichaCliente.telefono}
+                      </span>
+                    )}
+                    {fichaCliente.email && (
+                      <span style={{ fontSize: 13, color: "#4F6867", display: "flex", alignItems: "center", gap: 4 }}>
+                        ✉ {fichaCliente.email}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div style={{
+                  fontSize: 11, fontWeight: 700, color: "#4F6867",
+                  textTransform: "uppercase", letterSpacing: "0.06em",
+                  marginBottom: 8, borderTop: "1px solid #f0ece6", paddingTop: 12,
+                }}>Pedidos</div>
+                {fichaClienteLoading ? (
+                  <div style={{ textAlign: "center", padding: "20px 0", color: "#A2C2D0" }}>
+                    <div style={{
+                      width: 28, height: 28, border: "2px solid #A2C2D0",
+                      borderTopColor: "#4F6867", borderRadius: "50%",
+                      animation: "spin 0.7s linear infinite",
+                      margin: "0 auto",
+                    }} />
+                  </div>
+                ) : fichaClientePedidos.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "20px 0", color: "#A2C2D0", fontSize: 13 }}>
+                    No tiene pedidos
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {fichaClientePedidos.map(p => (
+                      <div key={p.id} onClick={() => { setPedidoFromFicha(true); setSelectedPedido({ ...p, pedidoTitulo: p.nombre, telefono: p.tel }); }}
+                        style={{
+                          background: "#FDFBF7", borderRadius: 10,
+                          border: `1px solid ${p.recogido ? "#d4cec6" : "#A2C2D0"}`,
+                          padding: "10px 14px", cursor: "pointer",
+                          opacity: p.recogido ? 0.65 : 1,
+                          transition: "all 0.15s",
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)"}
+                        onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{
+                                fontSize: 14, fontWeight: 600, color: "#1B1C39",
+                                textDecoration: p.recogido ? "line-through" : "none",
+                              }}>
+                                {p.numPedido > 0 ? `#${p.numPedido}` : "Pedido"}
+                              </span>
+                              {p.recogido && <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 4, background: "#E1F2FC", color: "#4F6867", fontWeight: 700 }}>RECOGIDO</span>}
+                              {p.pagado && <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 4, background: "#E1F2FC", color: "#3D5655", fontWeight: 700 }}>PAGADO</span>}
+                              {p.noAcude && <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 4, background: "#FFCDD2", color: "#C62828", fontWeight: 700 }}>NO ACUDE</span>}
+                            </div>
+                            <div style={{ fontSize: 12, color: "#4F6867", marginTop: 3 }}>
+                              {fmt.date(p.fecha?.split("T")[0] || "")}
+                              {(p.hora || fmt.time(p.fecha)) ? ` · ${p.hora || fmt.time(p.fecha)}` : ""}
+                            </div>
+                          </div>
+                          <span style={{ fontSize: 12, color: "#A2C2D0" }}>→</span>
+                        </div>
+                        {p.notas && (
+                          <div style={{ fontSize: 11, color: "#A2C2D0", marginTop: 4, fontStyle: "italic" }}>
+                            {p.notas.length > 60 ? p.notas.substring(0, 60) + "…" : p.notas}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+            <>
             {/* Orders grouped by date */}
             {pedidosFiltrados.length === 0 ? (
               <div style={{
@@ -1370,6 +1493,8 @@ export default function VyniaApp() {
                   })()}
                 </div>
               ))
+            )}
+            </>
             )}
           </div>
         )}
@@ -2013,7 +2138,7 @@ export default function VyniaApp() {
             position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
             display: "flex", alignItems: "center", justifyContent: "center",
             zIndex: 200, padding: 20,
-          }} onClick={() => { setSelectedPedido(null); setEditingFecha(null); setConfirmCancel(null); setEditingProductos(false); setEditLineas([]); setEditSearchProd(""); }}>
+          }} onClick={() => { setSelectedPedido(null); setEditingFecha(null); setConfirmCancel(null); setEditingProductos(false); setEditLineas([]); setEditSearchProd(""); setPedidoFromFicha(false); }}>
             <div style={{
               background: "#fff", borderRadius: 16, padding: "24px 20px",
               maxWidth: isDesktop ? 540 : 400, width: "100%",
@@ -2029,7 +2154,14 @@ export default function VyniaApp() {
                     <span style={{ fontSize: 11, color: "#A2C2D0" }}>Pedido #{selectedPedido.numPedido}</span>
                   )}
                 </div>
-                <button title="Cerrar detalle" onClick={() => { setSelectedPedido(null); setEditingFecha(null); setConfirmCancel(null); setEditingProductos(false); setEditLineas([]); setEditSearchProd(""); }} style={{
+                {pedidoFromFicha && (
+                  <button title="Volver a ficha de cliente" onClick={() => { setSelectedPedido(null); setEditingFecha(null); setConfirmCancel(null); setEditingProductos(false); setEditLineas([]); setEditSearchProd(""); setPedidoFromFicha(false); }} style={{
+                    border: "none", background: "transparent", cursor: "pointer",
+                    fontSize: 12, color: "#4F6867", fontWeight: 600, padding: "0 8px 0 0",
+                    fontFamily: "'Roboto Condensed', sans-serif",
+                  }}>← Cliente</button>
+                )}
+                <button title="Cerrar detalle" onClick={() => { setSelectedPedido(null); setEditingFecha(null); setConfirmCancel(null); setEditingProductos(false); setEditLineas([]); setEditSearchProd(""); setPedidoFromFicha(false); }} style={{
                   border: "none", background: "transparent", cursor: "pointer",
                   fontSize: 20, color: "#A2C2D0", padding: "0 4px",
                 }}>×</button>

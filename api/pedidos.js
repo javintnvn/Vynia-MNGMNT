@@ -41,8 +41,14 @@ async function handleGet(req, res) {
   try {
     const filter = req.query.filter || "todos";
     const fecha = req.query.fecha; // YYYY-MM-DD — filter by delivery date
+    const clienteId = req.query.clienteId; // filter by client relation
 
     const conditions = [];
+
+    // Client filter: pedidos for a specific client
+    if (clienteId) {
+      conditions.push({ property: "Clientes", relation: { contains: clienteId } });
+    }
 
     // Date filter: if fecha is provided, filter to that specific day
     if (fecha) {

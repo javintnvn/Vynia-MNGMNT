@@ -70,11 +70,15 @@ async function handleSearch(req, res) {
   }
 
   try {
+    const term = q.trim();
     const search = await notion.databases.query({
       database_id: DB_CLIENTES,
       filter: {
-        property: "title",
-        title: { contains: q.trim() },
+        or: [
+          { property: "title", title: { contains: term } },
+          { property: "Teléfono", phone_number: { contains: term } },
+          { property: "Correo electrónico", email: { contains: term } },
+        ],
       },
       page_size: 10,
     });
@@ -83,7 +87,8 @@ async function handleSearch(req, res) {
       const titleProp = Object.values(page.properties).find(p => p.type === "title");
       const nombre = titleProp ? (titleProp.title || []).map(t => t.plain_text).join("") : "";
       const tel = page.properties["Teléfono"]?.phone_number || "";
-      return { id: page.id, nombre, telefono: tel };
+      const email = page.properties["Correo electrónico"]?.email || "";
+      return { id: page.id, nombre, telefono: tel, email };
     });
 
     return res.status(200).json(clientes);

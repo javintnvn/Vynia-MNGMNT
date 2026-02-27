@@ -62,6 +62,10 @@ export const notion = {
     return apiCall(`/pedidos${params}`);
   },
 
+  async loadPedidosByCliente(clienteId) {
+    return apiCall(`/pedidos?clienteId=${clienteId}&_t=${Date.now()}`);
+  },
+
   async toggleRecogido(pageId, currentValue) {
     return apiCall(`/pedidos/${pageId}`, {
       method: "PATCH",

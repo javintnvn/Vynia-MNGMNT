@@ -7,9 +7,9 @@ Sistema de gestion de pedidos para **Vynia**, conectado a Notion como base de da
 ## Funcionalidades
 
 ### Pedidos
-- Lista de pedidos filtrable por fecha (Hoy / Manana / Pasado / Todos + date picker)
+- Lista de pedidos filtrable por fecha (Hoy / Manana / Pasado + date picker)
 - Filtros de estado: Pendientes, Recogidos, Todos
-- Buscador global independiente de filtros: busca en todos los pedidos (todas las fechas) y en la BD de clientes en paralelo. Filtra por cliente, telefono, notas, numero de pedido
+- Buscador de clientes: busca en BD Clientes por nombre, telefono o email. Muestra dropdown con resultados y al seleccionar un cliente abre ficha con datos + pedidos asociados. Click en pedido abre modal con boton "← Cliente" para volver a la ficha
 - Cards con nombre de cliente, hora entrega, telefono, productos, notas, importe
 - Click en pedido abre modal con detalle completo + productos cargados desde Registros
 - Click en telefono ofrece Llamar o enviar WhatsApp
@@ -78,7 +78,7 @@ Vynia-MNGMNT/
 ## API Endpoints
 
 ### GET /api/pedidos
-- Query params: `filter=todos|pendientes|recogidos`, `fecha=YYYY-MM-DD`
+- Query params: `filter=todos|pendientes|recogidos`, `fecha=YYYY-MM-DD`, `clienteId=<notion_page_id>`
 - Filtra por fecha a nivel de Notion (on_or_after + before nextDay)
 - Resuelve nombres de clientes via `pages.retrieve` en la relacion Clientes
 - Resuelve telefono via rollup
@@ -92,6 +92,10 @@ Vynia-MNGMNT/
 ### PATCH /api/pedidos/:id
 - Body: `{ properties: { ... }, archived?: boolean }` — propiedades a actualizar o archivar
 - Usado para toggle recogido, no acude, cambiar fecha, cancelar pedido (archived)
+
+### GET /api/clientes
+- Query params: `q=<search_term>` — busca clientes por nombre, telefono o email (filtro `or`)
+- Devuelve: `[{ id, nombre, telefono, email }]`
 
 ### POST /api/clientes
 - Body: `{ nombre, telefono? }`
