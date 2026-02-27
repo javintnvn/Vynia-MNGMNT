@@ -1488,36 +1488,45 @@ export default function VyniaApp() {
                           if (!next) return null;
                           const cfg = ESTADOS[next];
                           return (
-                            <button title={`Cambiar a: ${cfg.label}`} onClick={() => cambiarEstado(p, next)}
+                            <button className="estado-btn" title={`Cambiar a: ${cfg.label}`} onClick={() => cambiarEstado(p, next)}
                               style={{
-                                flex: 1, padding: "9px 0", borderRadius: 9,
-                                border: "none", fontSize: 12, fontWeight: 700,
+                                flex: 1, padding: "10px 0", borderRadius: 12,
+                                border: `1.5px solid ${cfg.color}50`,
+                                fontSize: 12, fontWeight: 700,
                                 cursor: "pointer", display: "flex",
                                 alignItems: "center", justifyContent: "center", gap: 6,
-                                background: `linear-gradient(135deg, ${cfg.color}, ${cfg.color}dd)`,
+                                background: `linear-gradient(135deg, ${cfg.color}ee, ${cfg.color}cc)`,
                                 color: "#fff",
-                                boxShadow: `0 2px 8px ${cfg.color}40`,
-                                transition: "all 0.2s",
+                                boxShadow: `0 3px 12px ${cfg.color}35, 0 1px 3px ${cfg.color}20`,
                               }}>
-                              {cfg.icon} {cfg.label}
+                              <div className="btn-shimmer" />
+                              <div className="btn-glow" style={{ background: `radial-gradient(circle at 50% 50%, ${cfg.color}30, transparent 70%)` }} />
+                              <span style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ fontSize: 14 }}>{cfg.icon}</span> {cfg.label}
+                                <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" style={{ width: 13, height: 13, opacity: 0.7 }}>
+                                  <path d="M9 5l7 7-7 7" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+                                </svg>
+                              </span>
                             </button>
                           );
                         })()}
 
                         {/* Estado picker toggle */}
-                        <button title="Cambiar estado" onClick={(e) => {
+                        <button className="estado-btn" title="Cambiar estado" onClick={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();
                           setEstadoPicker({ pedidoId: p.id, currentEstado: p.estado, x: rect.left + rect.width / 2, y: rect.bottom + 4 });
                         }}
                           style={{
-                            padding: "9px 14px", borderRadius: 9,
-                            border: `1px solid ${ESTADOS[p.estado]?.color || "#A2C2D0"}40`,
-                            background: ESTADOS[p.estado]?.bg || "transparent",
+                            padding: "10px 14px", borderRadius: 12,
+                            border: `1.5px solid ${ESTADOS[p.estado]?.color || "#A2C2D0"}35`,
+                            background: `linear-gradient(135deg, ${ESTADOS[p.estado]?.bg || "#F0F0F0"}, ${ESTADOS[p.estado]?.bg || "#F0F0F0"}dd)`,
                             color: ESTADOS[p.estado]?.color || "#4F6867",
                             fontSize: 12, fontWeight: 600, cursor: "pointer",
                             display: "flex", alignItems: "center", gap: 4,
+                            boxShadow: `0 2px 6px ${ESTADOS[p.estado]?.color || "#4F6867"}15`,
                           }}>
-                          {ESTADOS[p.estado]?.icon} ▾
+                          <div className="btn-shimmer" style={{ background: `linear-gradient(90deg, transparent 0%, ${ESTADOS[p.estado]?.color || "#4F6867"}15 50%, transparent 100%)` }} />
+                          <span style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 4 }}>{ESTADOS[p.estado]?.icon} ▾</span>
                         </button>
                       </div>
                     </div>
@@ -2468,26 +2477,42 @@ export default function VyniaApp() {
 
                 {/* ═══ ESTADO CHANGE ═══ */}
                 {(ESTADO_TRANSITIONS[selectedPedido.estado] || []).length > 0 && (
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
-                    {(ESTADO_TRANSITIONS[selectedPedido.estado] || []).map(est => {
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                    {(ESTADO_TRANSITIONS[selectedPedido.estado] || []).map((est, i) => {
                       const cfg = ESTADOS[est];
+                      const isPrimary = i === 0; // First transition is the primary/next logical step
                       return (
-                        <button key={est} onClick={() => {
+                        <button className="estado-btn" key={est} onClick={() => {
                           cambiarEstado(selectedPedido, est);
                           setSelectedPedido(prev => prev ? { ...prev, estado: est } : prev);
                         }}
-                        style={{
-                          padding: "8px 14px", borderRadius: 8,
-                          border: `1px solid ${cfg?.color || "#A2C2D0"}30`,
-                          background: cfg?.bg || "transparent",
+                        style={isPrimary ? {
+                          padding: "10px 18px", borderRadius: 12,
+                          border: `1.5px solid ${cfg?.color || "#A2C2D0"}50`,
+                          background: `linear-gradient(135deg, ${cfg?.color || "#4F6867"}ee, ${cfg?.color || "#4F6867"}cc)`,
+                          color: "#fff",
+                          fontSize: 13, fontWeight: 700, cursor: "pointer",
+                          display: "flex", alignItems: "center", gap: 6,
+                          boxShadow: `0 3px 12px ${cfg?.color || "#4F6867"}35, 0 1px 3px ${cfg?.color || "#4F6867"}20`,
+                        } : {
+                          padding: "9px 14px", borderRadius: 12,
+                          border: `1.5px solid ${cfg?.color || "#A2C2D0"}30`,
+                          background: `linear-gradient(135deg, ${cfg?.bg || "#F0F0F0"}, ${cfg?.bg || "#F0F0F0"}dd)`,
                           color: cfg?.color || "#4F6867",
                           fontSize: 12, fontWeight: 600, cursor: "pointer",
-                          display: "flex", alignItems: "center", gap: 4,
-                          transition: "all 0.15s",
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.boxShadow = `0 2px 8px ${cfg?.color || "#4F6867"}25`; }}
-                        onMouseLeave={e => { e.currentTarget.style.boxShadow = "none"; }}>
-                          {cfg?.icon} {cfg?.label || est}
+                          display: "flex", alignItems: "center", gap: 5,
+                          boxShadow: `0 2px 6px ${cfg?.color || "#4F6867"}12`,
+                        }}>
+                          <div className="btn-shimmer" style={!isPrimary ? { background: `linear-gradient(90deg, transparent 0%, ${cfg?.color || "#4F6867"}15 50%, transparent 100%)` } : undefined} />
+                          {isPrimary && <div className="btn-glow" style={{ background: `radial-gradient(circle at 50% 50%, ${cfg?.color || "#4F6867"}30, transparent 70%)` }} />}
+                          <span style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 5 }}>
+                            <span style={{ fontSize: isPrimary ? 15 : 13 }}>{cfg?.icon}</span> {cfg?.label || est}
+                            {isPrimary && (
+                              <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" style={{ width: 13, height: 13, opacity: 0.7 }}>
+                                <path d="M9 5l7 7-7 7" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+                              </svg>
+                            )}
+                          </span>
                         </button>
                       );
                     })}
@@ -2818,6 +2843,42 @@ export default function VyniaApp() {
           0% { background-position: 0% 0%; }
           50% { background-position: 100% 100%; }
           to { background-position: 0% 0%; }
+        }
+        @keyframes btnShimmer {
+          from { transform: translateX(-100%); }
+          to { transform: translateX(100%); }
+        }
+        .estado-btn {
+          position: relative;
+          overflow: hidden;
+          transition: all 0.3s ease-out;
+        }
+        .estado-btn:hover {
+          transform: translateY(-1px) scale(1.02);
+        }
+        .estado-btn:active {
+          transform: scale(0.96);
+        }
+        .estado-btn .btn-shimmer {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 50%, transparent 100%);
+          transform: translateX(-100%);
+          pointer-events: none;
+        }
+        .estado-btn:hover .btn-shimmer {
+          animation: btnShimmer 0.8s ease-out forwards;
+        }
+        .estado-btn .btn-glow {
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          opacity: 0;
+          transition: opacity 0.3s;
+          pointer-events: none;
+        }
+        .estado-btn:hover .btn-glow {
+          opacity: 1;
         }
         /* Shine border effect on order cards */
         .order-card {
