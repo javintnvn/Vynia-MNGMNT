@@ -1115,7 +1115,7 @@ export default function VyniaApp() {
             }}>
               <I.Broom />
             </button>
-            <button title="Recargar pedidos" onClick={() => loadPedidos()} style={{
+            <button title="Recargar pedidos" onClick={() => { invalidateApiCache(); loadPedidos(); }} style={{
               width: 34, height: 34, borderRadius: 9, border: "1px solid #A2C2D0",
               background: "#fff", cursor: "pointer", display: "flex",
               alignItems: "center", justifyContent: "center", color: "#4F6867",
