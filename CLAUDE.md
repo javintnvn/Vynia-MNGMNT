@@ -201,7 +201,7 @@ Exporta objeto `notion` con metodos:
 
 ## Tabs de la app
 
-1. **Pedidos** — Lista de pedidos con filtros estadisticos (pendientes/hoy/recogidos/todos), pills de filtro, badge de estado con colores, boton pipeline (1 tap avanza estado), estado picker popover, enlace telefono, busqueda de clientes con ficha
+1. **Pedidos** — Lista de pedidos con filtros estadisticos (pendientes/hoy/recogidos/todos), pills de filtro, badge de estado con colores, boton pipeline (1 tap avanza estado), estado picker popover, enlace telefono, busqueda de clientes con ficha, seleccion bulk para cambio de estado multiple
 2. **Nuevo** — Formulario para crear pedido: cliente (autocompletado) + telefono + fecha (presets hoy/manana/pasado + datepicker + hora) + productos del catalogo (busqueda + cantidades con NumberFlow animado) + pagado toggle + notas. Crea con Estado = "Sin empezar"
 3. **Produccion** — Vista agregada de productos por dia. Selector de fecha (presets + datepicker). Lista de productos con badge de cantidad total. Accordion: click en producto muestra pedidos con nombre de cliente y badge de estado. Click en pedido abre modal con detalle completo
 
@@ -234,6 +234,9 @@ Para pedidos que no tienen la propiedad Estado asignada, se deriva el estado des
 - `ESTADOS` — mapa de config (group, color, bg, label, icon) por cada estado
 - `ESTADO_NEXT` — siguiente estado en el pipeline lineal (para boton 1-tap)
 - `ESTADO_TRANSITIONS` — transiciones validas desde cada estado (para picker)
+
+### Seleccion bulk (`cambiarEstadoBulk`)
+Boton "Seleccionar" en la barra de filtros activa modo bulk. Cada card muestra checkbox circular; click togglea seleccion. Barra flotante (fixed, encima del bottom nav) muestra contador + botones de estado. Solo muestra transiciones validas comunes a todos los seleccionados (interseccion de `ESTADO_TRANSITIONS`). Ejecuta `cambiarEstado` en paralelo via `Promise.allSettled`. WhatsApp NO se dispara en bulk. Al completar o cambiar de tab, el modo se desactiva.
 
 ### WhatsApp notification
 Al marcar un pedido como "Listo para recoger", si el pedido tiene telefono, se muestra un popup preguntando si se quiere avisar al cliente. Si se acepta, se abre `wa.me/{telefono}?text={mensaje}` con el texto: "¡Hola! Tu pedido de Vynia ya esta listo para que pases a recogerlo."

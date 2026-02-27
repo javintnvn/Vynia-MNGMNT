@@ -352,9 +352,15 @@ export default function VyniaApp() {
   const [confirmCancel, setConfirmCancel] = useState(null); // pedidoId
   const [whatsappPrompt, setWhatsappPrompt] = useState(null); // { tel, nombre }
   const [editingFecha, setEditingFecha] = useState(null); // { pedidoId, newFecha }
+  const [editingNotas, setEditingNotas] = useState(null); // { pedidoId, newNotas }
   const [editingProductos, setEditingProductos] = useState(false);
   const [editLineas, setEditLineas] = useState([]); // [{ nombre, cantidad, precio, cat }]
   const [editSearchProd, setEditSearchProd] = useState("");
+
+  // Bulk selection
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkSelected, setBulkSelected] = useState(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   // Refs
   const toastTimer = useRef(null);
@@ -594,6 +600,29 @@ export default function VyniaApp() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ─── BULK ESTADO CHANGE ───
+  const cambiarEstadoBulk = async (nuevoEstado) => {
+    const selected = pedidos.filter(p => bulkSelected.has(p.id));
+    if (selected.length === 0) return;
+    setBulkLoading(true);
+    // Optimistic UI
+    setPedidos(ps => ps.map(p => bulkSelected.has(p.id) ? { ...p, estado: nuevoEstado } : p));
+
+    if (apiMode !== "demo") {
+      const results = await Promise.allSettled(
+        selected.map(p => notion.cambiarEstado(p.id, nuevoEstado))
+      );
+      const failed = results.filter(r => r.status === "rejected").length;
+      if (failed > 0) notify("err", `${failed} pedido${failed > 1 ? "s" : ""} fallaron`);
+      invalidateProduccion(); invalidateSearchCache();
+    }
+
+    notify("ok", `${selected.length} pedidos → ${ESTADOS[nuevoEstado]?.label || nuevoEstado}`);
+    setBulkMode(false);
+    setBulkSelected(new Set());
+    setBulkLoading(false);
   };
 
   // ─── CANCEL PEDIDO ───
@@ -879,6 +908,15 @@ export default function VyniaApp() {
     if (filtro === "recogidos") return pedidos.filter(p => p.estado === "Recogido");
     return pedidos;
   }, [pedidos, filtro]);
+
+  // ─── BULK TRANSITIONS (intersection of valid transitions for all selected) ───
+  const bulkTransitions = useMemo(() => {
+    if (bulkSelected.size === 0) return [];
+    const selected = pedidosFiltrados.filter(p => bulkSelected.has(p.id));
+    if (selected.length === 0) return [];
+    const sets = selected.map(p => new Set(ESTADO_TRANSITIONS[p.estado] || []));
+    return [...sets[0]].filter(est => sets.every(s => s.has(est)));
+  }, [bulkSelected, pedidosFiltrados]);
 
   // Group by date (memoized)
   const { groups, sortedDates } = useMemo(() => {
@@ -1188,6 +1226,22 @@ export default function VyniaApp() {
                   </button>
                   );
                 })}
+                <button title={bulkMode ? "Cancelar selección" : "Seleccionar pedidos"} onClick={() => {
+                  if (bulkMode) { setBulkMode(false); setBulkSelected(new Set()); }
+                  else { setBulkMode(true); setBulkSelected(new Set()); }
+                }}
+                  style={{
+                    padding: "7px 14px", borderRadius: 20, fontSize: 12,
+                    border: bulkMode ? "1.5px solid #C62828" : "1.5px solid #d4cec6",
+                    background: bulkMode ? "#FFEBEE" : "#fff",
+                    color: bulkMode ? "#C62828" : "#4F6867",
+                    fontWeight: bulkMode ? 700 : 500,
+                    cursor: "pointer", transition: "all 0.15s",
+                    fontFamily: "'Roboto Condensed', sans-serif",
+                    display: "flex", alignItems: "center", gap: 5,
+                  }}>
+                  {bulkMode ? "✕ Cancelar" : "☐ Seleccionar"}
+                </button>
               </div>
               <div ref={clienteWrapperRef} style={{ position: "relative", flex: 1, minWidth: 180 }}>
                 <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#A2C2D0", pointerEvents: "none" }}>
@@ -1382,25 +1436,46 @@ export default function VyniaApp() {
                     const manana = groups[dateKey].filter(p => !tardeSet.has(p.id));
                     const tarde = groups[dateKey].filter(p => tardeSet.has(p.id));
                     const gridStyle = { display: "grid", gridTemplateColumns: isDesktop ? "repeat(3, 1fr)" : isTablet ? "repeat(2, 1fr)" : "1fr", gap: isDesktop ? 12 : 8 };
-                    const renderCards = (list) => list.map(p => (
-                    <div key={p.id} className="order-card" style={{
-                      background: "#fff",
+                    const renderCards = (list) => list.map(p => {
+                    const isBulkSel = bulkMode && bulkSelected.has(p.id);
+                    return (
+                    <div key={p.id} className="order-card" onClick={bulkMode ? () => {
+                      setBulkSelected(prev => {
+                        const next = new Set(prev);
+                        next.has(p.id) ? next.delete(p.id) : next.add(p.id);
+                        return next;
+                      });
+                    } : undefined} style={{
+                      background: isBulkSel ? "#E1F2FC" : "#fff",
                       borderRadius: 14,
-                      border: `1px solid ${ESTADOS[p.estado]?.group === "complete" ? (ESTADOS[p.estado]?.color + "40") : "#A2C2D0"}`,
+                      border: isBulkSel ? "2px solid #4F6867" : `1px solid ${ESTADOS[p.estado]?.group === "complete" ? (ESTADOS[p.estado]?.color + "40") : "#A2C2D0"}`,
                       padding: "14px 16px",
-                      boxShadow: "0 1px 4px rgba(60,50,30,0.04)",
-                      opacity: ESTADOS[p.estado]?.group === "complete" ? 0.65 : 1,
+                      boxShadow: isBulkSel ? "0 2px 8px rgba(79,104,103,0.18)" : "0 1px 4px rgba(60,50,30,0.04)",
+                      opacity: ESTADOS[p.estado]?.group === "complete" && !bulkMode ? 0.65 : 1,
                       transition: "all 0.2s",
+                      cursor: bulkMode ? "pointer" : undefined,
+                      position: "relative",
                     }}>
                       {/* Top row: name + time + amount (clickable for detail) */}
-                      <div onClick={() => setSelectedPedido({
+                      <div onClick={bulkMode ? undefined : () => setSelectedPedido({
                         ...p,
                         pedidoTitulo: p.nombre,
                         telefono: p.tel,
                         productos: typeof p.productos === "string" ? parseProductsStr(p.productos) : (Array.isArray(p.productos) ? p.productos : []),
-                      })} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", cursor: "pointer" }}>
+                      })} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", cursor: bulkMode ? "default" : "pointer" }}>
                         <div style={{ flex: 1 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            {bulkMode && (
+                              <span style={{
+                                width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
+                                border: isBulkSel ? "2px solid #4F6867" : "2px solid #ccc",
+                                background: isBulkSel ? "#4F6867" : "transparent",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                transition: "all 0.15s", color: "#fff", fontSize: 13, fontWeight: 700,
+                              }}>
+                                {isBulkSel && "✓"}
+                              </span>
+                            )}
                             <span style={{
                               fontSize: 15, fontWeight: 700,
                               color: ESTADOS[p.estado]?.group === "complete" ? "#4F6867" : "#1B1C39",
@@ -1483,8 +1558,8 @@ export default function VyniaApp() {
                         </div>
                       </div>
 
-                      {/* Action buttons */}
-                      <div className="card-actions" style={{
+                      {/* Action buttons (hidden in bulk mode) */}
+                      {!bulkMode && <div className="card-actions" style={{
                         display: "flex", gap: 8, marginTop: 10,
                         borderTop: "1px solid #E1F2FC", paddingTop: 10,
                       }}>
@@ -1537,9 +1612,9 @@ export default function VyniaApp() {
                             ···
                           </span>
                         </button>
-                      </div>
+                      </div>}
                     </div>
-                    ));
+                    );});
                     return (
                       <>
                         {manana.length > 0 && (
@@ -2733,6 +2808,57 @@ export default function VyniaApp() {
         )}
       </main>
 
+      {/* ════ BULK ACTION BAR ════ */}
+      {bulkMode && bulkSelected.size > 0 && (
+        <div style={{
+          position: "fixed", bottom: 68, left: "50%", transform: "translateX(-50%)",
+          width: "calc(100% - 24px)", maxWidth: isDesktop ? 1380 : 940,
+          background: "rgba(27,28,57,0.92)",
+          backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+          borderRadius: 16, padding: "12px 16px",
+          boxShadow: "0 -4px 24px rgba(27,28,57,0.25), 0 2px 8px rgba(0,0,0,0.1)",
+          zIndex: 59,
+          animation: "bulkBarIn 0.2s ease-out",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <span style={{
+              fontSize: 13, fontWeight: 700, color: "#fff",
+              fontFamily: "'Roboto Condensed', sans-serif",
+              whiteSpace: "nowrap",
+            }}>
+              {bulkSelected.size} seleccionado{bulkSelected.size > 1 ? "s" : ""}
+            </span>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", flex: 1 }}>
+              {bulkTransitions.map(est => {
+                const cfg = ESTADOS[est];
+                return (
+                  <button key={est} disabled={bulkLoading} onClick={() => cambiarEstadoBulk(est)}
+                    style={{
+                      padding: "8px 14px", borderRadius: 10,
+                      border: "none",
+                      background: cfg.color,
+                      color: "#fff",
+                      fontSize: 12, fontWeight: 700,
+                      fontFamily: "'Roboto Condensed', sans-serif",
+                      cursor: bulkLoading ? "wait" : "pointer",
+                      opacity: bulkLoading ? 0.6 : 1,
+                      transition: "all 0.15s",
+                      whiteSpace: "nowrap",
+                    }}>
+                    {cfg.icon} {cfg.label}
+                  </button>
+                );
+              })}
+              {bulkTransitions.length === 0 && (
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontStyle: "italic" }}>
+                  Sin transiciones comunes
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ════ BOTTOM NAV ════ */}
       <nav style={{
         position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)",
@@ -2748,7 +2874,7 @@ export default function VyniaApp() {
           { key: "nuevo", icon: <I.Plus s={22} />, label: "Nuevo", tip: "Crear nuevo pedido" },
           { key: "produccion", icon: <I.Store s={22} />, label: "Producción", tip: "Ver producción diaria" },
         ].map(t => (
-          <button title={t.tip} key={t.key} onClick={() => { setTab(t.key); setCreateResult(null); if (t.key === "nuevo") resetForm(); if (t.key !== "pedidos") { setBusqueda(""); setAllPedidos(null); } if (t.key === "produccion" && produccionData.length === 0) loadProduccion(); }}
+          <button title={t.tip} key={t.key} onClick={() => { setTab(t.key); setCreateResult(null); if (t.key === "nuevo") resetForm(); if (t.key !== "pedidos") { setBusqueda(""); setAllPedidos(null); setBulkMode(false); setBulkSelected(new Set()); } if (t.key === "produccion" && produccionData.length === 0) loadProduccion(); }}
             style={{
               flex: 1, padding: "6px 0", border: "none",
               background: "transparent", cursor: "pointer",
@@ -2843,6 +2969,10 @@ export default function VyniaApp() {
         @keyframes modalIn {
           from { opacity: 0; transform: scale(0.96) translateY(8px); }
           to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes bulkBarIn {
+          from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+          to { opacity: 1; transform: translateX(-50%) translateY(0); }
         }
         @keyframes skeletonPulse {
           0%, 100% { opacity: 0.3; }
