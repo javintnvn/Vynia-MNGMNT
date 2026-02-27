@@ -309,30 +309,41 @@ export default function VyniaApp() {
     toastTimer.current = setTimeout(() => setToast(null), 3500);
   }, []);
 
-  // ─── SEARCH (independent of filters) ───
+  // ─── SEARCH (independent of filters — loads ALL pedidos + searches clientes) ───
+  const [searchClienteIds, setSearchClienteIds] = useState(new Set());
   const onBusquedaChange = (val) => {
     setBusqueda(val);
     if (busquedaTimer.current) clearTimeout(busquedaTimer.current);
-    if (!val.trim()) return; // keep allPedidos cached for next search
-    if (allPedidos) return; // already cached, just filter locally
+    if (!val.trim()) { setSearchClienteIds(new Set()); return; }
+    // Load all pedidos immediately if not cached
+    if (!allPedidos && apiMode !== "demo") {
+      (async () => {
+        try {
+          const data = await notion.loadPedidosByDate(null);
+          const mapped = (Array.isArray(data) ? data : []).map(p => ({
+            id: p.id, nombre: p.titulo || "", fecha: p.fecha || "",
+            recogido: !!p.recogido, noAcude: !!p.noAcude, pagado: !!p.pagado,
+            incidencia: !!p.incidencia, notas: p.notas || "", importe: p.importe || 0,
+            productos: p.productos || "", tel: p.telefono || "", numPedido: p.numPedido || 0,
+            hora: p.fecha?.includes("T") ? p.fecha.split("T")[1]?.substring(0, 5) : "",
+            cliente: p.cliente || (p.titulo || "").replace(/^Pedido\s+/i, ""),
+            clienteId: p.clienteId || null,
+          }));
+          setAllPedidos(mapped);
+        } catch { /* ignore */ }
+      })();
+    }
+    // Search clientes by name (debounced)
     busquedaTimer.current = setTimeout(async () => {
-      if (apiMode === "demo") return; // demo uses local data
+      if (apiMode === "demo" || val.trim().length < 2) { setSearchClienteIds(new Set()); return; }
       try {
-        const data = await notion.loadPedidosByDate(null); // all dates
-        const mapped = (Array.isArray(data) ? data : []).map(p => ({
-          id: p.id, nombre: p.titulo || "", fecha: p.fecha || "",
-          recogido: !!p.recogido, noAcude: !!p.noAcude, pagado: !!p.pagado,
-          incidencia: !!p.incidencia, notas: p.notas || "", importe: p.importe || 0,
-          productos: p.productos || "", tel: p.telefono || "", numPedido: p.numPedido || 0,
-          hora: p.fecha?.includes("T") ? p.fecha.split("T")[1]?.substring(0, 5) : "",
-          cliente: p.cliente || (p.titulo || "").replace(/^Pedido\s+/i, ""),
-        }));
-        setAllPedidos(mapped);
-      } catch { /* ignore */ }
-    }, 400);
+        const clientes = await notion.searchClientes(val.trim());
+        setSearchClienteIds(new Set((Array.isArray(clientes) ? clientes : []).map(c => c.id)));
+      } catch { setSearchClienteIds(new Set()); }
+    }, 300);
   };
   // Invalidate caches when data changes
-  const invalidateSearchCache = () => { setAllPedidos(null); invalidateApiCache(); };
+  const invalidateSearchCache = () => { setAllPedidos(null); setSearchClienteIds(new Set()); invalidateApiCache(); };
   const invalidateProduccion = (pedidoFecha) => {
     // Only invalidate if the pedido's date matches the currently loaded produccion date
     const pedidoDate = (pedidoFecha || "").split("T")[0];
@@ -373,6 +384,7 @@ export default function VyniaApp() {
         numPedido: p.numPedido || 0,
         hora: p.fecha?.includes("T") ? p.fecha.split("T")[1]?.substring(0, 5) : "",
         cliente: p.cliente || (p.titulo || "").replace(/^Pedido\s+/i, ""),
+        clienteId: p.clienteId || null,
       }));
 
       setPedidos(mapped);
@@ -806,18 +818,20 @@ export default function VyniaApp() {
   const pedidosFiltrados = useMemo(() => {
     if (isSearching) {
       const q = busqueda.toLowerCase();
-      return (allPedidos || pedidos).filter(p =>
+      const source = allPedidos || pedidos;
+      return source.filter(p =>
         (p.cliente || "").toLowerCase().includes(q)
         || (p.nombre || "").toLowerCase().includes(q)
         || (p.tel || "").includes(q)
         || (p.notas || "").toLowerCase().includes(q)
         || String(p.numPedido || "").includes(q)
+        || (searchClienteIds.size > 0 && p.clienteId && searchClienteIds.has(p.clienteId))
       );
     }
     if (filtro === "pendientes") return pedidos.filter(p => !p.recogido && !p.noAcude);
     if (filtro === "recogidos") return pedidos.filter(p => p.recogido);
     return pedidos;
-  }, [pedidos, allPedidos, busqueda, isSearching, filtro]);
+  }, [pedidos, allPedidos, busqueda, isSearching, filtro, searchClienteIds]);
 
   // Group by date (memoized)
   const { groups, sortedDates } = useMemo(() => {

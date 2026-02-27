@@ -9,7 +9,7 @@ Sistema de gestion de pedidos para **Vynia**, conectado a Notion como base de da
 ### Pedidos
 - Lista de pedidos filtrable por fecha (Hoy / Manana / Pasado / Todos + date picker)
 - Filtros de estado: Pendientes, Recogidos, Todos
-- Buscador global de pedidos (por cliente, telefono, notas, numero de pedido) — independiente de filtros
+- Buscador global independiente de filtros: busca en todos los pedidos (todas las fechas) y en la BD de clientes en paralelo. Filtra por cliente, telefono, notas, numero de pedido
 - Cards con nombre de cliente, hora entrega, telefono, productos, notas, importe
 - Click en pedido abre modal con detalle completo + productos cargados desde Registros
 - Click en telefono ofrece Llamar o enviar WhatsApp
