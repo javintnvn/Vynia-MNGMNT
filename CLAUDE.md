@@ -19,7 +19,8 @@ Vynia-MNGMNT/
 │   ├── produccion.js       # GET (produccion diaria agregada con clientes)
 │   └── tracking.js         # GET (seguimiento publico por telefono)
 ├── public/
-│   └── seguimiento.html    # Pagina publica de seguimiento de pedidos (standalone, sin React)
+│   ├── seguimiento.html    # Pagina publica de seguimiento de pedidos (standalone, sin React)
+│   └── logovynia2_azul.png # Logo Vynia usado en seguimiento
 ├── src/
 │   ├── App.jsx             # Componente principal (toda la UI, ~2700 lineas)
 │   └── api.js              # Cliente API frontend (wrapper fetch)
@@ -149,8 +150,6 @@ Integracion: **Frontend Vynia** (debe tener acceso a cada BD individualmente).
         "numPedido": 42,
         "fecha": "2026-02-26T10:30:00",
         "estado": "En preparación",
-        "notas": "Sin nueces",
-        "pagado": true,
         "productos": [
           { "nombre": "Brownie", "unidades": 3 }
         ]
@@ -159,17 +158,26 @@ Integracion: **Frontend Vynia** (debe tener acceso a cada BD individualmente).
   }
   ```
 - **NO expone IDs internos** de Notion (se eliminan antes de la respuesta)
+- **NO expone notas ni estado de pago** — solo fecha, estado, productos y cantidades
 - Si no encuentra cliente: devuelve `{ pedidos: [], cliente: null }`
 - Pedidos ordenados por fecha descendente (mas recientes primero), max 20
+- Cache server-side 15s (misma consulta repetida)
 
 ### Pagina de seguimiento (`/seguimiento`)
-- URL: `https://vynia-mngmnt.vercel.app/seguimiento`
+- URL standalone: `https://vynia-mngmnt.vercel.app/seguimiento`
+- URL publica (iframe en WordPress): `https://vynia.es/mi-pedido/`
 - Pagina standalone (HTML+JS vanilla, sin React) en `public/seguimiento.html`
+- Logo Vynia real (`public/logovynia2_azul.png`) en header (oculto en modo iframe)
 - El cliente introduce su telefono → llama a `/api/tracking?tel=...`
 - Muestra pipeline visual de 4 pasos (Sin empezar → Preparando → Listo → Recogido)
 - Para estados no-lineales (No acude, Incidencia) muestra badge en lugar de pipeline
 - Vynia-branded: misma paleta de colores y fuentes que la app principal
 - Mobile-first, responsive
+- Modo iframe: detecta `window !== window.top`, añade clase `.embedded` (oculta logo y footer, fondo transparente)
+- Iframe embed code para WordPress:
+  ```html
+  <iframe src="https://vynia-mngmnt.vercel.app/seguimiento" style="width:100%;min-height:600px;border:none;background:transparent" loading="lazy" allow="clipboard-write"></iframe>
+  ```
 
 ## Frontend API client (src/api.js)
 
