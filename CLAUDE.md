@@ -289,3 +289,4 @@ npx vite            # solo frontend (modo DEMO funciona sin API)
 - El catalogo de productos esta hardcodeado en `CATALOGO_FALLBACK[]` en App.jsx, con carga dinamica via `/api/productos`
 - `@number-flow/react` se usa para animaciones de cantidad en steppers del carrito
 - **Estado es la source of truth** — NO usar checkboxes para determinar estado. Usar `effectiveEstado()` que resuelve Estado o fallback desde checkboxes para legacy
+- **Sync con Notion** — La app se sincroniza con Notion de 3 formas: (1) auto-refresh al volver a la pestaña via `visibilitychange`, (2) polling cada 60s mientras la pestaña esta activa, (3) boton recargar manual. Todas invalidan el cache frontend (30s TTL en `api.js`) antes de hacer fetch. El cache de `api.js` (`CACHE_TTL = 30000`) evita llamadas duplicadas en operaciones rapidas pero se invalida explicitamente en cada recarga
