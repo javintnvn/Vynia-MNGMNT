@@ -210,10 +210,18 @@ export default function VyniaApp() {
   const [catalogo, setCatalogo] = useState(CATALOGO_FALLBACK);
   const [tooltip, setTooltip] = useState(null); // { text, x, y }
 
-  // ─── GLOBAL TOOLTIP (long-press on mobile, CSS hover on desktop) ───
+  // ─── GLOBAL TOOLTIP (long-press on mobile, JS hover on desktop) ───
   useEffect(() => {
     let timer = null;
-    const show = (text, x, y) => setTooltip({ text, x, y });
+    let hoverEl = null;
+
+    const show = (text, rect) => {
+      const x = Math.max(70, Math.min(rect.left + rect.width / 2, window.innerWidth - 70));
+      const spaceAbove = rect.top;
+      const flip = spaceAbove < 44;
+      const y = flip ? rect.bottom + 6 : rect.top - 4;
+      setTooltip({ text, x, y, flip });
+    };
     const hide = () => setTooltip(null);
 
     // Mobile: long-press to show tooltip
@@ -223,25 +231,34 @@ export default function VyniaApp() {
       const text = btn.getAttribute("title");
       if (!text) return;
       const rect = btn.getBoundingClientRect();
-      timer = setTimeout(() => {
-        show(text, rect.left + rect.width / 2, rect.top - 4);
-      }, 400);
+      timer = setTimeout(() => show(text, rect), 400);
     };
     const onTouchEnd = () => { clearTimeout(timer); setTimeout(hide, 1500); };
     const onScroll = () => { clearTimeout(timer); hide(); };
 
-    // Desktop: copy title→data-tip on hover (for CSS ::after tooltip), remove title to prevent native
+    // Desktop: show JS tooltip on hover (replaces CSS ::after)
     const onMouseOver = (e) => {
       const el = e.target.closest("[title]");
-      if (!el) return;
-      const t = el.getAttribute("title");
-      if (t) { el.setAttribute("data-tip", t); el.removeAttribute("title"); }
+      if (!el || el === hoverEl) return;
+      if (hoverEl) {
+        const prev = hoverEl.getAttribute("data-tip");
+        if (prev) { hoverEl.setAttribute("title", prev); hoverEl.removeAttribute("data-tip"); }
+      }
+      hoverEl = el;
+      const text = el.getAttribute("title");
+      if (!text) return;
+      el.setAttribute("data-tip", text);
+      el.removeAttribute("title");
+      const rect = el.getBoundingClientRect();
+      show(text, rect);
     };
     const onMouseOut = (e) => {
-      const el = e.target.closest("[data-tip]");
-      if (!el) return;
-      const t = el.getAttribute("data-tip");
-      if (t) { el.setAttribute("title", t); el.removeAttribute("data-tip"); }
+      if (!hoverEl) return;
+      if (hoverEl.contains(e.relatedTarget)) return;
+      const t = hoverEl.getAttribute("data-tip");
+      if (t) { hoverEl.setAttribute("title", t); hoverEl.removeAttribute("data-tip"); }
+      hoverEl = null;
+      hide();
     };
 
     document.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -2453,25 +2470,32 @@ export default function VyniaApp() {
         ))}
       </nav>
 
-      {/* ════ TOOLTIP (mobile long-press) ════ */}
+      {/* ════ TOOLTIP (desktop hover + mobile long-press) ════ */}
       {tooltip && (
         <div style={{
           position: "fixed",
           left: tooltip.x,
           top: tooltip.y,
-          transform: "translate(-50%, -100%)",
+          transform: tooltip.flip ? "translateX(-50%)" : "translate(-50%, -100%)",
           background: "#1B1C39",
           color: "#fff",
           fontSize: 11,
           fontWeight: 600,
-          padding: "5px 10px",
-          borderRadius: 6,
-          zIndex: 300,
+          padding: "6px 12px",
+          borderRadius: 8,
+          zIndex: 9999,
           pointerEvents: "none",
           whiteSpace: "nowrap",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
-          animation: "tooltipIn 0.15s ease",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+          animation: tooltip.flip ? "tooltipInFlip 0.15s ease" : "tooltipIn 0.15s ease",
         }}>
+          <div style={{
+            position: "absolute",
+            [tooltip.flip ? "top" : "bottom"]: 0,
+            left: "15%", width: "70%", height: 1.5,
+            background: "linear-gradient(to right, transparent, #4F6867, #A2C2D0, transparent)",
+            borderRadius: 1,
+          }} />
           {tooltip.text}
         </div>
       )}
@@ -2498,6 +2522,10 @@ export default function VyniaApp() {
         @keyframes tooltipIn {
           from { opacity: 0; transform: translate(-50%, -100%) scale(0.9); }
           to { opacity: 1; transform: translate(-50%, -100%) scale(1); }
+        }
+        @keyframes tooltipInFlip {
+          from { opacity: 0; transform: translateX(-50%) scale(0.9); }
+          to { opacity: 1; transform: translateX(-50%) scale(1); }
         }
         @keyframes shine-pulse {
           0% { background-position: 0% 0%; }
@@ -2532,29 +2560,7 @@ export default function VyniaApp() {
         @media (prefers-reduced-motion: reduce) {
           .order-card::before { animation: none; }
         }
-        /* CSS tooltips: instant on hover (desktop), long-press on mobile */
-        @media (hover: hover) {
-          [data-tip] {
-            position: relative;
-          }
-          [data-tip]:hover::after {
-            content: attr(data-tip);
-            position: absolute;
-            bottom: calc(100% + 6px);
-            left: 50%;
-            transform: translateX(-50%);
-            background: #1B1C39;
-            color: #fff;
-            padding: 5px 10px;
-            border-radius: 6px;
-            font-size: 11px;
-            font-weight: 500;
-            white-space: nowrap;
-            z-index: 999;
-            pointer-events: none;
-            animation: tooltipIn 0.12s ease-out;
-          }
-        }
+        /* Tooltips are now JS-driven for both desktop and mobile */
         @media (hover: none) {
           [title] { -webkit-touch-callout: none; }
         }
