@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import NumberFlow from "@number-flow/react";
 import { notion, invalidateApiCache } from "./api.js";
 
 // ════════════════════════════════════════════════════════════
@@ -1840,11 +1841,16 @@ export default function VyniaApp() {
                             cursor: "pointer", display: "flex", alignItems: "center",
                             justifyContent: "center", color: "#4F6867",
                           }}><I.Minus /></button>
-                        <span style={{
-                          width: 28, textAlign: "center", fontSize: 15,
-                          fontWeight: 800, color: "#1B1C39",
-                          fontFamily: "'Roboto Condensed', sans-serif",
-                        }}>{l.cantidad}</span>
+                        <NumberFlow
+                          value={l.cantidad}
+                          format={{ useGrouping: false }}
+                          style={{
+                            width: 28, textAlign: "center", fontSize: 15,
+                            fontWeight: 800, color: "#1B1C39",
+                            fontFamily: "'Roboto Condensed', sans-serif",
+                          }}
+                          willChange
+                        />
                         <button title="Añadir una unidad" onClick={() => updateQty(l.nombre, 1)}
                           style={{
                             width: 34, height: 34, border: "none", background: "transparent",
@@ -2323,7 +2329,8 @@ export default function VyniaApp() {
                             style={{ width: 28, height: 28, border: "none", background: "transparent", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#4F6867", display: "flex", alignItems: "center", justifyContent: "center" }}>
                             <I.Minus s={12} />
                           </button>
-                          <span style={{ width: 24, textAlign: "center", lineHeight: "28px", fontSize: 13, fontWeight: 700, color: "#1B1C39" }}>{l.cantidad}</span>
+                          <NumberFlow value={l.cantidad} format={{ useGrouping: false }}
+                            style={{ width: 24, textAlign: "center", lineHeight: "28px", fontSize: 13, fontWeight: 700, color: "#1B1C39" }} willChange />
                           <button onClick={() => updateEditQty(l.nombre, 1)}
                             style={{ width: 28, height: 28, border: "none", background: "transparent", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#4F6867", display: "flex", alignItems: "center", justifyContent: "center" }}>
                             <I.Plus s={12} />
