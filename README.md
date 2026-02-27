@@ -188,7 +188,7 @@ Se configura en `.env.local` para desarrollo local y en el dashboard de Vercel p
 - El campo `"Nombre"` (title) en Registros contiene solo `" "` — usar `"AUX Producto Texto"` (formula) para el nombre real del producto
 - `"N Pedido"` es tipo `unique_id`, acceder via `.unique_id.number`
 - El telefono del cliente viene de un rollup en Pedidos: `p["Telefono"]?.rollup?.array[0]?.phone_number`
-- Para obtener nombre de cliente: resolver relacion `"Clientes"` → `notion.pages.retrieve` → buscar propiedad tipo `title`
+- El nombre del cliente viene del rollup `"AUX Nombre Cliente"` en Pedidos: `p["AUX Nombre Cliente"]?.rollup?.array[0]?.title[0]?.plain_text` — elimina la necesidad de llamadas extra `pages.retrieve`
 - Toda la UI esta en un solo componente `App.jsx` — no hay componentes separados
 - El catalogo de productos se carga dinamicamente desde Notion via `GET /api/productos`. En App.jsx existe `CATALOGO_FALLBACK` (69 productos) como respaldo para modo DEMO o si falla la API
 - Notion es la source of truth para productos y precios: si se crea o modifica un producto en Notion, la app lo refleja sin intervencion
@@ -216,6 +216,7 @@ Se configura en `.env.local` para desarrollo local y en el dashboard de Vercel p
 - **Static assets**: Cache-Control immutable para assets hasheados en Vercel
 - **Retry automatico**: Proxy en `_notion.js` reintenta 429/502/503 con backoff exponencial (transparente para endpoints)
 - **Cache servidor**: `productos` 5min, `produccion` 30s (Map en instancia warm Vercel, independiente por funcion serverless)
-- **Cache clientes**: nombres de clientes cacheados 5min a nivel de modulo en pedidos.js y produccion.js (evita re-fetch de pages.retrieve en cada request)
+- **Rollup cliente**: nombre del cliente via rollup `"AUX Nombre Cliente"` en Notion — elimina N+1 queries `pages.retrieve` (0 API calls extra vs N antes)
+- **Batch delete registros**: archivado en lotes de 3 en paralelo con 200ms entre lotes (vs secuencial con 300ms antes)
 - **Enrich cap**: enriquecimiento de importes limitado a 50 pedidos (evita cientos de API calls al cargar "Todos")
 - **Write throttling**: 300ms entre archives en DELETE registros, 200ms entre batches de queries paralelas en pedidos/produccion

@@ -1,10 +1,6 @@
-import { notion, cached, delay } from "./_notion.js";
+import { notion } from "./_notion.js";
 
 const DB_PEDIDOS = "1c418b3a-38b1-81a1-9f3c-da137557fcf6";
-
-// Client name cache (persists on warm instances, avoids re-fetching same clients)
-const _clientCache = new Map();
-const CLIENT_CACHE_TTL = 300000; // 5 min
 
 function extractTitle(prop) {
   if (!prop || prop.type !== "title") return "";
@@ -87,15 +83,17 @@ async function handleGet(req, res) {
       cursor = response.has_more ? response.next_cursor : undefined;
     } while (cursor);
 
-    // Build pedido list + collect client IDs to resolve
-    const clientIdsToFetch = new Set();
-    const pedidosRaw = allResults.map((page) => {
+    // Build pedido list (client name from rollup — no extra API calls)
+    const pedidos = allResults.map((page) => {
       const p = page.properties;
       const clientRelation = p["Clientes"]?.relation || [];
       const clientId = clientRelation.length > 0 ? clientRelation[0].id : null;
       const telRollup = p["Teléfono"]?.rollup?.array || [];
       const telefono = telRollup.length > 0 ? (telRollup[0].phone_number || "") : "";
-      if (clientId) clientIdsToFetch.add(clientId);
+      const clienteRollup = p["AUX Nombre Cliente"]?.rollup?.array || [];
+      const cliente = clienteRollup.length > 0
+        ? (clienteRollup[0].title || []).map(t => t.plain_text).join("")
+        : "";
       return {
         id: page.id,
         titulo: extractTitle(p["Pedido"]),
@@ -108,39 +106,9 @@ async function handleGet(req, res) {
         numPedido: p["Nº Pedido"]?.unique_id?.number || 0,
         clienteId: clientId,
         telefono,
+        cliente,
       };
     });
-
-    // Resolve client names in batches of 5 (with persistent cache)
-    const clientNames = {};
-    const now = Date.now();
-    const uncachedIds = [];
-    for (const cid of clientIdsToFetch) {
-      const entry = _clientCache.get(cid);
-      if (entry && now - entry.ts < CLIENT_CACHE_TTL) {
-        clientNames[cid] = entry.name;
-      } else {
-        uncachedIds.push(cid);
-      }
-    }
-    const fetchClient = async (cid) => {
-      try {
-        const clientPage = await notion.pages.retrieve({ page_id: cid });
-        const titleProp = Object.values(clientPage.properties).find(p => p.type === "title");
-        const name = titleProp ? (titleProp.title || []).map(t => t.plain_text).join("") : "";
-        clientNames[cid] = name;
-        _clientCache.set(cid, { name, ts: Date.now() });
-      } catch { clientNames[cid] = ""; }
-    };
-    for (let i = 0; i < uncachedIds.length; i += 5) {
-      await Promise.all(uncachedIds.slice(i, i + 5).map(fetchClient));
-      if (i + 5 < uncachedIds.length) await delay(200);
-    }
-
-    const pedidos = pedidosRaw.map(ped => ({
-      ...ped,
-      cliente: ped.clienteId ? (clientNames[ped.clienteId] || "") : "",
-    }));
 
     return res.status(200).json(pedidos);
   } catch (error) {

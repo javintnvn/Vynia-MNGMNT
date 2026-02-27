@@ -3,9 +3,6 @@ import { notion, cached, delay } from "./_notion.js";
 const DB_PEDIDOS = "1c418b3a-38b1-81a1-9f3c-da137557fcf6";
 const DB_REGISTROS = "1d418b3a-38b1-808b-9afb-c45193c1270b";
 
-const _clientCache = new Map();
-const CLIENT_CACHE_TTL = 300000;
-
 function extractTitle(prop) {
   if (!prop || prop.type !== "title") return "";
   return (prop.title || []).map((t) => t.plain_text).join("");
@@ -52,9 +49,8 @@ export default async function handler(req, res) {
       return res.status(200).json({ productos: [] });
     }
 
-    // Build pedido info map + fetch client names
+    // Build pedido info map (client name from rollup — no extra API calls)
     const pedidoMap = {};
-    const clientIdsToFetch = new Set();
 
     for (const page of pedidos) {
       const p = page.properties;
@@ -62,6 +58,10 @@ export default async function handler(req, res) {
       const clientId = clientRelation.length > 0 ? clientRelation[0].id : null;
       const telRollup = p["Teléfono"]?.rollup?.array || [];
       const telefono = telRollup.length > 0 ? (telRollup[0].phone_number || "") : "";
+      const clienteRollup = p["AUX Nombre Cliente"]?.rollup?.array || [];
+      const cliente = clienteRollup.length > 0
+        ? (clienteRollup[0].title || []).map(t => t.plain_text).join("")
+        : "";
 
       pedidoMap[page.id] = {
         pedidoId: page.id,
@@ -74,41 +74,9 @@ export default async function handler(req, res) {
         notas: extractRichText(p["Notas"]),
         numPedido: p["Nº Pedido"]?.unique_id?.number || 0,
         clienteId: clientId,
-        cliente: "",
+        cliente,
         telefono,
       };
-      if (clientId) clientIdsToFetch.add(clientId);
-    }
-
-    // Fetch client names in batches of 5 (with persistent cache)
-    const clientNames = {};
-    const now = Date.now();
-    const uncachedIds = [];
-    for (const cid of clientIdsToFetch) {
-      const entry = _clientCache.get(cid);
-      if (entry && now - entry.ts < CLIENT_CACHE_TTL) {
-        clientNames[cid] = entry.name;
-      } else {
-        uncachedIds.push(cid);
-      }
-    }
-    const fetchClient = async (cid) => {
-      try {
-        const clientPage = await notion.pages.retrieve({ page_id: cid });
-        const titleProp = Object.values(clientPage.properties).find(p => p.type === "title");
-        const name = titleProp ? (titleProp.title || []).map(t => t.plain_text).join("") : "";
-        clientNames[cid] = name;
-        _clientCache.set(cid, { name, ts: Date.now() });
-      } catch { clientNames[cid] = ""; }
-    };
-    for (let i = 0; i < uncachedIds.length; i += BATCH_SIZE) {
-      await Promise.all(uncachedIds.slice(i, i + BATCH_SIZE).map(fetchClient));
-      if (i + BATCH_SIZE < uncachedIds.length) await delay(200);
-    }
-
-    // Assign client names to pedidos
-    for (const ped of Object.values(pedidoMap)) {
-      if (ped.clienteId) ped.cliente = clientNames[ped.clienteId] || "";
     }
 
     // 2. Query registros for ALL pedidos in parallel

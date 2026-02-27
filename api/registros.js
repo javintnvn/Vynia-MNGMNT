@@ -77,9 +77,11 @@ async function handleDelete(req, res) {
   }
 
   try {
-    for (let i = 0; i < registroIds.length; i++) {
-      await notion.pages.update({ page_id: registroIds[i], archived: true });
-      if (i < registroIds.length - 1) await delay(300);
+    for (let i = 0; i < registroIds.length; i += 3) {
+      await Promise.all(registroIds.slice(i, i + 3).map(id =>
+        notion.pages.update({ page_id: id, archived: true })
+      ));
+      if (i + 3 < registroIds.length) await delay(200);
     }
     return res.status(200).json({ ok: true });
   } catch (error) {
