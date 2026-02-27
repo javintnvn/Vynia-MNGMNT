@@ -514,6 +514,16 @@ export default function VyniaApp() {
 
   useEffect(() => { loadPedidos(); loadProduccion(); }, [apiMode]);
 
+  // ─── Auto-refresh: reload on tab focus + poll every 60s ───
+  useEffect(() => {
+    if (apiMode === "demo") return;
+    const reload = () => { invalidateApiCache(); loadPedidos(); if (tab === "produccion") loadProduccion(); };
+    const onVisible = () => { if (!document.hidden) reload(); };
+    document.addEventListener("visibilitychange", onVisible);
+    const interval = setInterval(() => { if (!document.hidden) reload(); }, 60000);
+    return () => { document.removeEventListener("visibilitychange", onVisible); clearInterval(interval); };
+  }, [apiMode, tab, loadPedidos]);
+
   // ─── Load product catalog from Notion (source of truth) ───
   useEffect(() => {
     if (apiMode === "demo") { setCatalogo(CATALOGO_FALLBACK); return; }
