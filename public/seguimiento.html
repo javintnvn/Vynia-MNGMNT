@@ -39,11 +39,11 @@
       text-align: center;
       margin-bottom: 32px;
     }
-    .header img {
-      width: 56px;
-      height: 56px;
-      border-radius: 14px;
-      margin-bottom: 12px;
+    .header .logo {
+      width: 120px;
+      height: auto;
+      margin-bottom: 8px;
+      opacity: 0.85;
     }
     .header h1 {
       font-family: 'Roboto Condensed', sans-serif;
@@ -308,20 +308,6 @@
       font-size: 13px;
     }
 
-    /* ─── Notas ─── */
-    .notas {
-      margin-top: 12px;
-      padding: 10px 14px;
-      background: #FFF8E1;
-      border-radius: 10px;
-      font-size: 13px;
-      color: #7B6B2E;
-      line-height: 1.4;
-    }
-    .notas::before {
-      content: "📝 ";
-    }
-
     /* ─── Footer ─── */
     .footer {
       text-align: center;
@@ -346,7 +332,7 @@
     body.embedded .header {
       margin-bottom: 20px;
     }
-    body.embedded .header img {
+    body.embedded .header .logo {
       display: none;
     }
     body.embedded .footer {
@@ -357,7 +343,7 @@
 <body>
   <div class="container">
     <div class="header">
-      <img src="data:image/png;base64,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" alt="Vynia" />
+      <img class="logo" src="/logovynia2_azul.png" alt="Vynia — Obrador sin gluten" />
       <h1>Seguimiento de pedido</h1>
       <p>Introduce tu teléfono para ver el estado</p>
     </div>
