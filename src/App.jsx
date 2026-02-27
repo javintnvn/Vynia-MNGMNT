@@ -569,8 +569,8 @@ export default function VyniaApp() {
     if (apiMode === "demo") {
       setPedidos(ps => ps.map(p => p.id === pedido.id ? { ...p, estado: nuevoEstado } : p));
       notify("ok", ESTADOS[nuevoEstado]?.label || nuevoEstado);
-      if (nuevoEstado === "Listo para recoger" && pedido.telefono) {
-        setWhatsappPrompt({ tel: pedido.telefono, nombre: pedido.cliente || pedido.titulo });
+      if (nuevoEstado === "Listo para recoger" && (pedido.telefono || pedido.tel)) {
+        setWhatsappPrompt({ tel: pedido.telefono || pedido.tel, nombre: pedido.cliente || pedido.titulo || pedido.nombre });
       }
       return;
     }
@@ -580,8 +580,8 @@ export default function VyniaApp() {
       setPedidos(ps => ps.map(p => p.id === pedido.id ? { ...p, estado: nuevoEstado } : p));
       invalidateProduccion(pedido.fecha); invalidateSearchCache();
       notify("ok", `${ESTADOS[nuevoEstado]?.icon || ""} ${ESTADOS[nuevoEstado]?.label || nuevoEstado}`);
-      if (nuevoEstado === "Listo para recoger" && pedido.telefono) {
-        setWhatsappPrompt({ tel: pedido.telefono, nombre: pedido.cliente || pedido.titulo });
+      if (nuevoEstado === "Listo para recoger" && (pedido.telefono || pedido.tel)) {
+        setWhatsappPrompt({ tel: pedido.telefono || pedido.tel, nombre: pedido.cliente || pedido.titulo || pedido.nombre });
       }
     } catch (err) {
       notify("err", err.message);
@@ -2582,7 +2582,7 @@ export default function VyniaApp() {
                   const cfg = ESTADOS[est];
                   return (
                     <button key={est} onClick={() => {
-                      const pedido = pedidos.find(p => p.id === estadoPicker.pedidoId) || { id: estadoPicker.pedidoId, fecha: "" };
+                      const pedido = pedidos.find(p => p.id === estadoPicker.pedidoId) || { id: estadoPicker.pedidoId, fecha: "", tel: "", cliente: "" };
                       cambiarEstado(pedido, est);
                       setEstadoPicker(null);
                     }}
