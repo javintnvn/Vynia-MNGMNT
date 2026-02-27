@@ -16,14 +16,17 @@ Vynia-MNGMNT/
 │   ├── pedidos/[id].js     # PATCH (cambiar estado, propiedades)
 │   ├── clientes.js         # POST (buscar o crear cliente)
 │   ├── registros.js        # POST (crear linea de pedido)
-│   └── produccion.js       # GET (produccion diaria agregada con clientes)
+│   ├── produccion.js       # GET (produccion diaria agregada con clientes)
+│   └── tracking.js         # GET (seguimiento publico por telefono)
+├── public/
+│   └── seguimiento.html    # Pagina publica de seguimiento de pedidos (standalone, sin React)
 ├── src/
 │   ├── App.jsx             # Componente principal (toda la UI, ~2700 lineas)
 │   └── api.js              # Cliente API frontend (wrapper fetch)
 ├── main.jsx                # Entry point React
 ├── index.html
 ├── vite.config.js
-├── vercel.json             # Rewrites: /api/* → serverless, /* → SPA
+├── vercel.json             # Rewrites: /seguimiento → tracking page, /api/* → serverless, /* → SPA
 ├── .env.local              # NOTION_TOKEN (gitignored)
 └── package.json
 ```
@@ -132,6 +135,41 @@ Integracion: **Frontend Vynia** (debe tener acceso a cada BD individualmente).
 - Resuelve nombres de clientes via rollup `"AUX Nombre Cliente"` en Pedidos
 - Lee nombre de producto de formula `"AUX Producto Texto"`, no del titulo
 - Incluye lista completa de productos de cada pedido en `pedido.productos`
+
+### GET /api/tracking
+- Query params: `tel=612345678` (numero de telefono, minimo 6 digitos)
+- **Endpoint publico** — usado por la pagina de seguimiento para clientes
+- Flujo: 1) Busca cliente en BD Clientes por `Telefono` (phone_number contains), 2) Query Pedidos por relacion Clientes, 3) Fetch registros (productos) por cada pedido
+- Devuelve `{ cliente: "Maria Garcia", pedidos: [...] }` con estructura:
+  ```json
+  {
+    "cliente": "Maria Garcia",
+    "pedidos": [
+      {
+        "numPedido": 42,
+        "fecha": "2026-02-26T10:30:00",
+        "estado": "En preparación",
+        "notas": "Sin nueces",
+        "pagado": true,
+        "productos": [
+          { "nombre": "Brownie", "unidades": 3 }
+        ]
+      }
+    ]
+  }
+  ```
+- **NO expone IDs internos** de Notion (se eliminan antes de la respuesta)
+- Si no encuentra cliente: devuelve `{ pedidos: [], cliente: null }`
+- Pedidos ordenados por fecha descendente (mas recientes primero), max 20
+
+### Pagina de seguimiento (`/seguimiento`)
+- URL: `https://vynia-mngmnt.vercel.app/seguimiento`
+- Pagina standalone (HTML+JS vanilla, sin React) en `public/seguimiento.html`
+- El cliente introduce su telefono → llama a `/api/tracking?tel=...`
+- Muestra pipeline visual de 4 pasos (Sin empezar → Preparando → Listo → Recogido)
+- Para estados no-lineales (No acude, Incidencia) muestra badge en lugar de pipeline
+- Vynia-branded: misma paleta de colores y fuentes que la app principal
+- Mobile-first, responsive
 
 ## Frontend API client (src/api.js)
 

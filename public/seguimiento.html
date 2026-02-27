@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vynia — Seguimiento de pedido</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #4F6867;
+      --secondary: #1B1C39;
+      --accent: #E1F2FC;
+      --bg: #EFE9E4;
+      --muted: #A2C2D0;
+      --white: #fff;
+      --radius: 16px;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--secondary);
+      min-height: 100dvh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 24px 16px 40px;
+    }
+
+    /* ─── Header ─── */
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .header img {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      margin-bottom: 12px;
+    }
+    .header h1 {
+      font-family: 'Roboto Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--secondary);
+      letter-spacing: -0.02em;
+    }
+    .header p {
+      font-size: 14px;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    /* ─── Search form ─── */
+    .search-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 24px 20px;
+      box-shadow: 0 2px 12px rgba(27,28,57,0.06);
+      margin-bottom: 24px;
+    }
+    .search-card label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--secondary);
+      margin-bottom: 8px;
+    }
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+    .prefix {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f5f5f5;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 12px;
+      padding: 0 14px;
+      font-size: 15px;
+      font-weight: 600;
+      color: #888;
+      white-space: nowrap;
+    }
+    .input-row input {
+      flex: 1;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 17px;
+      font-family: 'Roboto Condensed', sans-serif;
+      font-weight: 500;
+      outline: none;
+      transition: border-color 0.2s;
+      -webkit-appearance: none;
+    }
+    .input-row input:focus {
+      border-color: var(--primary);
+    }
+    .input-row input::placeholder {
+      color: #bbb;
+    }
+    .search-btn {
+      display: block;
+      width: 100%;
+      margin-top: 14px;
+      padding: 14px;
+      background: var(--primary);
+      color: var(--white);
+      font-size: 15px;
+      font-weight: 700;
+      font-family: 'Roboto Condensed', sans-serif;
+      letter-spacing: 0.01em;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+    }
+    .search-btn:hover { background: #3d5453; }
+    .search-btn:active { transform: scale(0.97); }
+    .search-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    /* ─── Loading ─── */
+    .loading {
+      text-align: center;
+      padding: 40px 0;
+      color: #888;
+      font-size: 14px;
+    }
+    .spinner {
+      display: inline-block;
+      width: 28px;
+      height: 28px;
+      border: 3px solid #e0e0e0;
+      border-top: 3px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-bottom: 10px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Error / Empty ─── */
+    .message {
+      text-align: center;
+      padding: 32px 20px;
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: 0 2px 12px rgba(27,28,57,0.06);
+    }
+    .message .icon { font-size: 36px; margin-bottom: 10px; }
+    .message .text { font-size: 14px; color: #666; line-height: 1.5; }
+
+    /* ─── Results ─── */
+    .results-header {
+      font-family: 'Roboto Condensed', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--secondary);
+      margin-bottom: 14px;
+    }
+    .results-header span {
+      color: var(--primary);
+    }
+
+    .pedido-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: 0 2px 12px rgba(27,28,57,0.06);
+      margin-bottom: 14px;
+      border-left: 4px solid var(--primary);
+    }
+
+    .pedido-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+    .pedido-num {
+      font-family: 'Roboto Condensed', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--secondary);
+    }
+    .pedido-fecha {
+      font-size: 13px;
+      color: #888;
+    }
+
+    /* ─── Pipeline ─── */
+    .pipeline {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 16px;
+      overflow-x: auto;
+    }
+    .pipeline-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      min-width: 0;
+      position: relative;
+    }
+    .pipeline-dot {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      z-index: 1;
+      transition: all 0.3s;
+    }
+    .pipeline-dot.active {
+      box-shadow: 0 0 0 4px rgba(0,0,0,0.08);
+      transform: scale(1.15);
+    }
+    .pipeline-dot.done {
+      opacity: 0.7;
+    }
+    .pipeline-dot.pending {
+      background: #e8e8e8 !important;
+      color: #bbb !important;
+    }
+    .pipeline-label {
+      font-size: 10px;
+      font-weight: 600;
+      margin-top: 6px;
+      text-align: center;
+      line-height: 1.2;
+      color: #888;
+      white-space: nowrap;
+    }
+    .pipeline-label.active {
+      color: var(--secondary);
+      font-weight: 700;
+    }
+    .pipeline-line {
+      flex: 0.5;
+      height: 3px;
+      background: #e0e0e0;
+      min-width: 12px;
+      margin-top: -20px;
+    }
+    .pipeline-line.done {
+      background: var(--primary);
+      opacity: 0.5;
+    }
+
+    /* ─── Status badge ─── */
+    .estado-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+
+    /* ─── Products ─── */
+    .productos-list {
+      border-top: 1px solid #f0f0f0;
+      padding-top: 12px;
+    }
+    .productos-list h4 {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #aaa;
+      margin-bottom: 8px;
+    }
+    .producto-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      font-size: 14px;
+    }
+    .producto-item .nombre {
+      color: var(--secondary);
+    }
+    .producto-item .cantidad {
+      font-family: 'Roboto Condensed', sans-serif;
+      font-weight: 700;
+      color: var(--primary);
+      background: rgba(79,104,103,0.08);
+      padding: 2px 10px;
+      border-radius: 10px;
+      font-size: 13px;
+    }
+
+    /* ─── Notas ─── */
+    .notas {
+      margin-top: 12px;
+      padding: 10px 14px;
+      background: #FFF8E1;
+      border-radius: 10px;
+      font-size: 13px;
+      color: #7B6B2E;
+      line-height: 1.4;
+    }
+    .notas::before {
+      content: "📝 ";
+    }
+
+    /* ─── Footer ─── */
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      font-size: 12px;
+      color: #aaa;
+    }
+
+    /* ─── Complete state (Recogido/No acude) ─── */
+    .pedido-card.complete {
+      opacity: 0.6;
+      border-left-color: #ccc;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="data:image/png;base64,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" alt="Vynia" />
+      <h1>Seguimiento de pedido</h1>
+      <p>Introduce tu teléfono para ver el estado</p>
+    </div>
+
+    <div class="search-card">
+      <label for="tel">Número de teléfono</label>
+      <div class="input-row">
+        <div class="prefix">+34</div>
+        <input type="tel" id="tel" placeholder="612 345 678" maxlength="12" inputmode="numeric" autocomplete="tel" />
+      </div>
+      <button class="search-btn" id="searchBtn" onclick="buscar()">Consultar pedido</button>
+    </div>
+
+    <div id="results"></div>
+
+    <div class="footer">
+      Vynia &mdash; Pastelería y panadería sin gluten
+    </div>
+  </div>
+
+  <script>
+    const ESTADOS_CONFIG = {
+      "Sin empezar":        { color: "#8B8B8B", bg: "#F0F0F0", icon: "○", label: "Sin empezar" },
+      "En preparación":     { color: "#1565C0", bg: "#E3F2FD", icon: "◐", label: "Preparando" },
+      "Listo para recoger": { color: "#E65100", bg: "#FFF3E0", icon: "●", label: "Listo" },
+      "Recogido":           { color: "#2E7D32", bg: "#E8F5E9", icon: "✓", label: "Recogido" },
+      "No acude":           { color: "#C62828", bg: "#FFEBEE", icon: "✗", label: "No acude" },
+      "Incidencia":         { color: "#795548", bg: "#FDE8E5", icon: "!", label: "Incidencia" },
+    };
+
+    const PIPELINE = ["Sin empezar", "En preparación", "Listo para recoger", "Recogido"];
+
+    function buscar() {
+      const tel = document.getElementById("tel").value.replace(/\D/g, "");
+      if (tel.length < 6) {
+        showMessage("📱", "Introduce un número de teléfono válido");
+        return;
+      }
+
+      const btn = document.getElementById("searchBtn");
+      btn.disabled = true;
+      btn.textContent = "Buscando...";
+
+      document.getElementById("results").innerHTML =
+        '<div class="loading"><div class="spinner"></div><div>Consultando pedidos...</div></div>';
+
+      fetch("/api/tracking?tel=" + encodeURIComponent(tel))
+        .then(r => r.json())
+        .then(data => {
+          btn.disabled = false;
+          btn.textContent = "Consultar pedido";
+
+          if (data.error) {
+            showMessage("⚠️", data.error);
+            return;
+          }
+          if (!data.pedidos || data.pedidos.length === 0) {
+            showMessage("🔍", "No se encontraron pedidos para este número de teléfono. Comprueba que el número es correcto.");
+            return;
+          }
+
+          renderPedidos(data.cliente, data.pedidos);
+        })
+        .catch(() => {
+          btn.disabled = false;
+          btn.textContent = "Consultar pedido";
+          showMessage("⚠️", "Error de conexión. Inténtalo de nuevo.");
+        });
+    }
+
+    function showMessage(icon, text) {
+      document.getElementById("results").innerHTML =
+        '<div class="message"><div class="icon">' + icon + '</div><div class="text">' + text + '</div></div>';
+    }
+
+    function formatFecha(f) {
+      if (!f) return "";
+      const d = new Date(f);
+      const dias = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+      const meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+      let str = dias[d.getDay()] + " " + d.getDate() + " " + meses[d.getMonth()];
+      if (f.includes("T")) {
+        str += " · " + d.getHours().toString().padStart(2, "0") + ":" + d.getMinutes().toString().padStart(2, "0");
+      }
+      return str;
+    }
+
+    function renderPedidos(cliente, pedidos) {
+      let html = '<div class="results-header">Pedidos de <span>' + escapeHtml(cliente) + '</span></div>';
+
+      for (const ped of pedidos) {
+        const estado = ped.estado || "Sin empezar";
+        const cfg = ESTADOS_CONFIG[estado] || ESTADOS_CONFIG["Sin empezar"];
+        const isComplete = estado === "Recogido" || estado === "No acude" || estado === "Incidencia";
+
+        html += '<div class="pedido-card' + (isComplete ? ' complete' : '') + '" style="border-left-color:' + cfg.color + '">';
+
+        // Top row: order number + date
+        html += '<div class="pedido-top">';
+        html += '<div class="pedido-num">Pedido #' + ped.numPedido + '</div>';
+        html += '<div class="pedido-fecha">' + formatFecha(ped.fecha) + '</div>';
+        html += '</div>';
+
+        // Pipeline visualization (only for standard flow)
+        const isStandardFlow = PIPELINE.includes(estado);
+        if (isStandardFlow) {
+          html += renderPipeline(estado);
+        } else {
+          // For non-standard states (No acude, Incidencia), show badge
+          html += '<div class="estado-badge" style="background:' + cfg.bg + ';color:' + cfg.color + '">';
+          html += cfg.icon + ' ' + cfg.label;
+          html += '</div>';
+        }
+
+        // Products
+        if (ped.productos && ped.productos.length > 0) {
+          html += '<div class="productos-list"><h4>Productos</h4>';
+          for (const prod of ped.productos) {
+            html += '<div class="producto-item">';
+            html += '<span class="nombre">' + escapeHtml(prod.nombre) + '</span>';
+            html += '<span class="cantidad">x' + prod.unidades + '</span>';
+            html += '</div>';
+          }
+          html += '</div>';
+        }
+
+        // Notes
+        if (ped.notas) {
+          html += '<div class="notas">' + escapeHtml(ped.notas) + '</div>';
+        }
+
+        html += '</div>';
+      }
+
+      document.getElementById("results").innerHTML = html;
+    }
+
+    function renderPipeline(currentEstado) {
+      const currentIdx = PIPELINE.indexOf(currentEstado);
+      let html = '<div class="pipeline">';
+
+      for (let i = 0; i < PIPELINE.length; i++) {
+        const estado = PIPELINE[i];
+        const cfg = ESTADOS_CONFIG[estado];
+        const isDone = i < currentIdx;
+        const isActive = i === currentIdx;
+        const isPending = i > currentIdx;
+
+        // Connector line before step (except first)
+        if (i > 0) {
+          html += '<div class="pipeline-line' + (isDone ? ' done' : '') + '"></div>';
+        }
+
+        html += '<div class="pipeline-step">';
+
+        let dotClass = "pipeline-dot";
+        let dotStyle = "";
+        if (isActive) {
+          dotClass += " active";
+          dotStyle = "background:" + cfg.color + ";color:#fff";
+        } else if (isDone) {
+          dotClass += " done";
+          dotStyle = "background:" + cfg.color + ";color:#fff";
+        } else {
+          dotClass += " pending";
+        }
+
+        html += '<div class="' + dotClass + '" style="' + dotStyle + '">' + cfg.icon + '</div>';
+        html += '<div class="pipeline-label' + (isActive ? ' active' : '') + '">' + cfg.label + '</div>';
+        html += '</div>';
+      }
+
+      html += '</div>';
+      return html;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return "";
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    // Allow Enter key to trigger search
+    document.getElementById("tel").addEventListener("keydown", function(e) {
+      if (e.key === "Enter") buscar();
+    });
+  </script>
+</body>
+</html>
