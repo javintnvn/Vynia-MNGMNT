@@ -335,6 +335,23 @@
       opacity: 0.6;
       border-left-color: #ccc;
     }
+
+    /* ─── Iframe embed mode ─── */
+    body.embedded {
+      background: transparent;
+    }
+    body.embedded .container {
+      padding-top: 8px;
+    }
+    body.embedded .header {
+      margin-bottom: 20px;
+    }
+    body.embedded .header img {
+      display: none;
+    }
+    body.embedded .footer {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -362,6 +379,10 @@
   </div>
 
   <script>
+    // Base URL for API calls (works both standalone and inside iframe)
+    const API_BASE = location.hostname === "vynia-mngmnt.vercel.app"
+      ? "" : "https://vynia-mngmnt.vercel.app";
+
     const ESTADOS_CONFIG = {
       "Sin empezar":        { color: "#8B8B8B", bg: "#F0F0F0", icon: "○", label: "Sin empezar" },
       "En preparación":     { color: "#1565C0", bg: "#E3F2FD", icon: "◐", label: "Preparando" },
@@ -387,7 +408,7 @@
       document.getElementById("results").innerHTML =
         '<div class="loading"><div class="spinner"></div><div>Consultando pedidos...</div></div>';
 
-      fetch("/api/tracking?tel=" + encodeURIComponent(tel))
+      fetch(API_BASE + "/api/tracking?tel=" + encodeURIComponent(tel))
         .then(r => r.json())
         .then(data => {
           btn.disabled = false;
@@ -526,6 +547,11 @@
     document.getElementById("tel").addEventListener("keydown", function(e) {
       if (e.key === "Enter") buscar();
     });
+
+    // Detect iframe embed → add .embedded class for cleaner look
+    if (window !== window.top) {
+      document.body.classList.add("embedded");
+    }
   </script>
 </body>
 </html>
