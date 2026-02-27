@@ -1,4 +1,5 @@
 {
+  "cleanUrls": true,
   "headers": [
     {
       "source": "/assets/(.*)",
@@ -8,7 +9,6 @@
     }
   ],
   "rewrites": [
-    { "source": "/seguimiento", "destination": "/seguimiento.html" },
     { "source": "/((?!api/|seguimiento).*)", "destination": "/index.html" }
   ]
 }
