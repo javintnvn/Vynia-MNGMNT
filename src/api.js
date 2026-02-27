@@ -1,15 +1,51 @@
 const API_BASE = "/api";
 
+// ─── Request deduplication (GET only) ───
+const _inflight = new Map();
+
+// ─── In-memory cache with 30s TTL (GET only) ───
+const _cache = new Map();
+const CACHE_TTL = 30000;
+
+function getCached(key) {
+  const entry = _cache.get(key);
+  if (!entry || Date.now() - entry.ts > CACHE_TTL) { _cache.delete(key); return null; }
+  return entry.data;
+}
+
+export function invalidateApiCache() { _cache.clear(); }
+
 async function apiCall(path, options = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(errData.error || `API Error ${res.status}`);
+  const method = (options.method || "GET").toUpperCase();
+  const key = method === "GET" ? `GET:${path}` : null;
+
+  // Dedup: return existing in-flight promise for same GET
+  if (key && _inflight.has(key)) return _inflight.get(key);
+
+  // Cache: return cached data if fresh
+  if (key) {
+    const cached = getCached(key);
+    if (cached) return cached;
   }
-  return res.json();
+
+  const promise = (async () => {
+    const res = await fetch(`${API_BASE}${path}`, {
+      headers: { "Content-Type": "application/json" },
+      ...options,
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({ error: "Unknown error" }));
+      throw new Error(errData.error || `API Error ${res.status}`);
+    }
+    return res.json();
+  })();
+
+  if (key) {
+    _inflight.set(key, promise);
+    promise.then(data => _cache.set(key, { data, ts: Date.now() })).finally(() => _inflight.delete(key));
+  }
+
+  return promise;
 }
 
 export const notion = {

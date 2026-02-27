@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { notion } from "./api.js";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { notion, invalidateApiCache } from "./api.js";
 
 // ════════════════════════════════════════════════════════════
 //  VYNIA — Sistema de Gestión de Pedidos
@@ -67,6 +67,10 @@ const CATALOGO = [
   { nombre: "Chapata", precio: 2.50, cat: "Panadería" },
   { nombre: "Pan de Torrijas", precio: 7.00, cat: "Panadería" },
 ].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+
+// Pre-computed price lookup (avoids rebuilding on every pedido load)
+const PRICE_MAP = {};
+CATALOGO.forEach(c => { PRICE_MAP[c.nombre.toLowerCase().trim()] = c.precio; });
 
 // Most ordered products (for quick access)
 const FRECUENTES = [
@@ -307,7 +311,7 @@ export default function VyniaApp() {
     }, 400);
   };
   // Invalidate caches when data changes
-  const invalidateSearchCache = () => setAllPedidos(null);
+  const invalidateSearchCache = () => { setAllPedidos(null); invalidateApiCache(); };
   const invalidateProduccion = (pedidoFecha) => {
     // Only invalidate if the pedido's date matches the currently loaded produccion date
     const pedidoDate = (pedidoFecha || "").split("T")[0];
@@ -352,24 +356,22 @@ export default function VyniaApp() {
 
       setPedidos(mapped);
       notify("ok", `${mapped.length} pedido${mapped.length !== 1 ? "s" : ""} cargado${mapped.length !== 1 ? "s" : ""}`);
-      // Enrich pedidos with importe in background (progressive per batch)
+      // Enrich pedidos with importe in background (single setState after all batches)
       if (mapped.length > 0) {
-        const priceMap = {};
-        CATALOGO.forEach(c => { priceMap[c.nombre.toLowerCase().trim()] = c.precio; });
         (async () => {
+          const allUpdates = {};
           for (let i = 0; i < mapped.length; i += 5) {
-            const batchUpdates = {};
             await Promise.all(mapped.slice(i, i + 5).map(async (ped) => {
               try {
                 const prods = await notion.loadRegistros(ped.id);
                 if (!Array.isArray(prods)) return;
-                const imp = prods.reduce((s, pr) => s + (pr.unidades || 0) * (priceMap[(pr.nombre || "").toLowerCase().trim()] || 0), 0);
+                const imp = prods.reduce((s, pr) => s + (pr.unidades || 0) * (PRICE_MAP[(pr.nombre || "").toLowerCase().trim()] || 0), 0);
                 const str = prods.map(pr => `${pr.unidades}x ${pr.nombre}`).join(", ");
-                batchUpdates[ped.id] = { importe: imp, productos: str };
+                allUpdates[ped.id] = { importe: imp, productos: str };
               } catch { /* ignore */ }
             }));
-            setPedidos(ps => ps.map(p => batchUpdates[p.id] ? { ...p, ...batchUpdates[p.id] } : p));
           }
+          setPedidos(ps => ps.map(p => allUpdates[p.id] ? { ...p, ...allUpdates[p.id] } : p));
         })();
       }
     } catch (err) {
@@ -704,40 +706,70 @@ export default function VyniaApp() {
   const totalPedido = lineas.reduce((s, l) => s + l.cantidad * l.precio, 0);
   const totalItems = lineas.reduce((s, l) => s + l.cantidad, 0);
 
-  // ─── FILTERED PEDIDOS (date filtering done at API level) ───
+  // ─── STATS (single-pass, memoized) ───
+  const { statsTotal, statsPendientes, statsRecogidos } = useMemo(() => {
+    let total = 0, pendientes = 0, recogidos = 0;
+    for (const p of pedidos) {
+      total++;
+      if (p.recogido) recogidos++;
+      else if (!p.noAcude) pendientes++;
+    }
+    return { statsTotal: total, statsPendientes: pendientes, statsRecogidos: recogidos };
+  }, [pedidos]);
+
+  // ─── FILTERED PEDIDOS (memoized) ───
   const isSearching = busqueda.trim().length > 0;
-  const pedidosFiltrados = isSearching
-    ? (allPedidos || pedidos).filter(p => {
-        const q = busqueda.toLowerCase();
-        return (p.cliente || "").toLowerCase().includes(q)
-          || (p.nombre || "").toLowerCase().includes(q)
-          || (p.tel || "").includes(q)
-          || (p.notas || "").toLowerCase().includes(q)
-          || String(p.numPedido || "").includes(q);
-      })
-    : pedidos.filter(p => {
-        if (filtro === "pendientes") return !p.recogido && !p.noAcude;
-        if (filtro === "recogidos") return p.recogido;
-        return true;
-      });
+  const pedidosFiltrados = useMemo(() => {
+    if (isSearching) {
+      const q = busqueda.toLowerCase();
+      return (allPedidos || pedidos).filter(p =>
+        (p.cliente || "").toLowerCase().includes(q)
+        || (p.nombre || "").toLowerCase().includes(q)
+        || (p.tel || "").includes(q)
+        || (p.notas || "").toLowerCase().includes(q)
+        || String(p.numPedido || "").includes(q)
+      );
+    }
+    if (filtro === "pendientes") return pedidos.filter(p => !p.recogido && !p.noAcude);
+    if (filtro === "recogidos") return pedidos.filter(p => p.recogido);
+    return pedidos;
+  }, [pedidos, allPedidos, busqueda, isSearching, filtro]);
 
-  // Group by date
-  const groups = {};
-  pedidosFiltrados.forEach(p => {
-    const dateKey = (p.fecha || "").split("T")[0] || "sin-fecha";
-    if (!groups[dateKey]) groups[dateKey] = [];
-    groups[dateKey].push(p);
-  });
-  const sortedDates = Object.keys(groups).sort();
+  // Group by date (memoized)
+  const { groups, sortedDates } = useMemo(() => {
+    const g = {};
+    pedidosFiltrados.forEach(p => {
+      const dateKey = (p.fecha || "").split("T")[0] || "sin-fecha";
+      if (!g[dateKey]) g[dateKey] = [];
+      g[dateKey].push(p);
+    });
+    return { groups: g, sortedDates: Object.keys(g).sort() };
+  }, [pedidosFiltrados]);
 
-  const productosFiltrados = searchProd
-    ? CATALOGO.filter(p => p.nombre.toLowerCase().includes(searchProd.toLowerCase()))
-    : [];
+  // Catalog search (memoized)
+  const productosFiltrados = useMemo(() => {
+    if (!searchProd) return [];
+    const q = searchProd.toLowerCase();
+    return CATALOGO.filter(p => p.nombre.toLowerCase().includes(q));
+  }, [searchProd]);
 
-  // ─── STATS (from currently loaded pedidos) ───
-  const statsTotal = pedidos.length;
-  const statsPendientes = pedidos.filter(p => !p.recogido && !p.noAcude).length;
-  const statsRecogidos = pedidos.filter(p => p.recogido).length;
+  // ─── PRODUCTION VIEW (memoized) ───
+  const { prodView, totalPendiente, totalRecogido, activeProductCount } = useMemo(() => {
+    if (!produccionData || produccionData.length === 0) {
+      return { prodView: [], totalPendiente: 0, totalRecogido: 0, activeProductCount: 0 };
+    }
+    const view = produccionData.map(prod => {
+      const pedsFiltrados = ocultarRecogidos ? prod.pedidos.filter(p => !p.recogido) : prod.pedidos;
+      const uds = pedsFiltrados.reduce((s, p) => s + p.unidades, 0);
+      return { ...prod, pedidosFiltrados: pedsFiltrados, udsFiltradas: uds, udsRecogidas: prod.totalUnidades - uds };
+    }).filter(p => p.udsFiltradas > 0 || !ocultarRecogidos);
+    return {
+      prodView: view,
+      totalPendiente: view.reduce((s, p) => s + p.udsFiltradas, 0),
+      totalRecogido: view.reduce((s, p) => s + p.udsRecogidas, 0),
+      activeProductCount: view.filter(p => p.udsFiltradas > 0).length,
+    };
+  }, [produccionData, ocultarRecogidos]);
 
   // ═══════════════════════════════════════════════════════════
   //  RENDER
@@ -1058,8 +1090,10 @@ export default function VyniaApp() {
 
                   {/* Order cards — split by Mañana/Tarde */}
                   {(() => {
-                    const manana = groups[dateKey].filter(p => !esTarde(p));
-                    const tarde = groups[dateKey].filter(p => esTarde(p));
+                    const tardeSet = new Set();
+                    for (const p of groups[dateKey]) { if (esTarde(p)) tardeSet.add(p.id); }
+                    const manana = groups[dateKey].filter(p => !tardeSet.has(p.id));
+                    const tarde = groups[dateKey].filter(p => tardeSet.has(p.id));
                     const gridStyle = { display: "grid", gridTemplateColumns: isDesktop ? "repeat(3, 1fr)" : isTablet ? "repeat(2, 1fr)" : "1fr", gap: isDesktop ? 12 : 8 };
                     const renderCards = (list) => list.map(p => (
                     <div key={p.id} className="order-card" style={{
@@ -1100,7 +1134,7 @@ export default function VyniaApp() {
                                 background: "#FDE8E5", color: "#C62828", fontWeight: 700,
                               }}>!</span>
                             )}
-                            {esTarde(p) && (
+                            {tardeSet.has(p.id) && (
                               <span style={{
                                 fontSize: 9, padding: "2px 6px", borderRadius: 4,
                                 background: "#FFF3E0", color: "#E65100", fontWeight: 700,
@@ -1648,16 +1682,6 @@ export default function VyniaApp() {
 
             {/* Product list */}
             {(() => {
-              // Compute filtered view based on ocultarRecogidos
-              const prodView = produccionData.map(prod => {
-                const pedsFiltrados = ocultarRecogidos ? prod.pedidos.filter(p => !p.recogido) : prod.pedidos;
-                const uds = pedsFiltrados.reduce((s, p) => s + p.unidades, 0);
-                return { ...prod, pedidosFiltrados: pedsFiltrados, udsFiltradas: uds, udsRecogidas: prod.totalUnidades - uds };
-              }).filter(p => p.udsFiltradas > 0 || !ocultarRecogidos);
-
-              const totalPendiente = prodView.reduce((s, p) => s + p.udsFiltradas, 0);
-              const totalRecogido = prodView.reduce((s, p) => s + p.udsRecogidas, 0);
-
               if (produccionData.length === 0) return (
                 <div style={{ textAlign: "center", padding: "40px 20px", color: "#A2C2D0" }}>
                   <I.Store s={40} />
@@ -1679,7 +1703,7 @@ export default function VyniaApp() {
                     background: "#E1F2FC", borderRadius: 10,
                   }}>
                     <span style={{ fontSize: 12, fontWeight: 600, color: "#4F6867" }}>
-                      {prodView.filter(p => p.udsFiltradas > 0).length} {prodView.filter(p => p.udsFiltradas > 0).length === 1 ? "producto" : "productos"}
+                      {activeProductCount} {activeProductCount === 1 ? "producto" : "productos"}
                     </span>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       {totalRecogido > 0 && (
