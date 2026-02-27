@@ -691,6 +691,33 @@ export default function VyniaApp() {
     }
   };
 
+  // ─── MODIFY NOTAS ───
+  const cambiarNotas = async (pedido, newNotas) => {
+    const trimmed = (newNotas || "").trim();
+    if (apiMode === "demo") {
+      setPedidos(ps => ps.map(p => p.id === pedido.id ? { ...p, notas: trimmed } : p));
+      if (selectedPedido?.id === pedido.id) setSelectedPedido(prev => prev ? { ...prev, notas: trimmed } : prev);
+      setEditingNotas(null);
+      notify("ok", trimmed ? "Notas actualizadas" : "Notas eliminadas");
+      return;
+    }
+    setLoading(true);
+    try {
+      await notion.updatePage(pedido.id, {
+        "Notas": { rich_text: trimmed ? [{ type: "text", text: { content: trimmed } }] : [] }
+      });
+      setPedidos(ps => ps.map(p => p.id === pedido.id ? { ...p, notas: trimmed } : p));
+      if (selectedPedido?.id === pedido.id) setSelectedPedido(prev => prev ? { ...prev, notas: trimmed } : prev);
+      invalidateSearchCache();
+      setEditingNotas(null);
+      notify("ok", trimmed ? "Notas actualizadas" : "Notas eliminadas");
+    } catch (err) {
+      notify("err", err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ─── MODIFY PEDIDO PRODUCTS ───
   const addEditProducto = (prod) => {
     const existing = editLineas.find(l => l.nombre === prod.nombre);
@@ -2552,12 +2579,37 @@ export default function VyniaApp() {
                   </>
                 )}
 
-                {selectedPedido.notas && (
-                  <div style={{ fontSize: 12, color: "#1B1C39", fontStyle: "italic", padding: "10px 14px", background: "rgba(239,233,228,0.5)", borderRadius: 12, overflowWrap: "break-word", wordBreak: "break-word", border: "1px solid rgba(162,194,208,0.12)" }}>
+                {editingNotas?.pedidoId === selectedPedido.id ? (
+                  <div style={{ padding: "10px 14px", background: "rgba(239,233,228,0.5)", borderRadius: 12, border: "1.5px solid #A2C2D0" }}>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: "#A2C2D0", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 6 }}>Notas</span>
+                    <textarea
+                      autoFocus
+                      value={editingNotas.newNotas}
+                      onChange={e => setEditingNotas(en => ({ ...en, newNotas: e.target.value }))}
+                      placeholder="Escribe una nota..."
+                      rows={3}
+                      style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #A2C2D0", fontSize: 12, fontFamily: "Inter, sans-serif", resize: "vertical", background: "#fff", color: "#1B1C39", boxSizing: "border-box" }}
+                    />
+                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                      <button onClick={() => cambiarNotas(selectedPedido, editingNotas.newNotas)}
+                        style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #4F6867, #3D5655)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                        Guardar
+                      </button>
+                      <button onClick={() => setEditingNotas(null)}
+                        style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid #A2C2D0", background: "transparent", color: "#A2C2D0", fontSize: 12, cursor: "pointer" }}>
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                ) : selectedPedido.notas ? (
+                  <div onClick={() => setEditingNotas({ pedidoId: selectedPedido.id, newNotas: selectedPedido.notas || "" })}
+                    style={{ fontSize: 12, color: "#1B1C39", fontStyle: "italic", padding: "10px 14px", background: "rgba(239,233,228,0.5)", borderRadius: 12, overflowWrap: "break-word", wordBreak: "break-word", border: "1px solid rgba(162,194,208,0.12)", cursor: "pointer", transition: "border-color 0.15s" }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = "#A2C2D0"}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(162,194,208,0.12)"}>
                     <span style={{ fontSize: 9, fontWeight: 700, color: "#A2C2D0", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 4, fontStyle: "normal" }}>Notas</span>
                     {selectedPedido.notas}
                   </div>
-                )}
+                ) : null}
 
                 {/* ═══ ESTADO CHANGE ═══ */}
                 {(ESTADO_TRANSITIONS[selectedPedido.estado] || []).length > 0 && (
@@ -2635,6 +2687,13 @@ export default function VyniaApp() {
                       <I.Cal s={15} /> Cambiar fecha de entrega
                     </button>
                   )}
+
+                  <button onClick={() => setEditingNotas({ pedidoId: selectedPedido.id, newNotas: selectedPedido.notas || "" })}
+                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 10, border: "none", background: "transparent", color: "#4F6867", fontSize: 13, fontWeight: 500, cursor: "pointer", width: "100%", transition: "background 0.15s" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(225,242,252,0.5)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    <span style={{ fontSize: 14 }}>📝</span> {selectedPedido.notas ? "Editar notas" : "Añadir notas"}
+                  </button>
 
                   <div style={{ height: 1, background: "rgba(162,194,208,0.12)", margin: "2px 12px" }} />
 

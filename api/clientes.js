@@ -6,6 +6,9 @@ export default async function handler(req, res) {
   if (req.method === "GET") {
     return handleSearch(req, res);
   }
+  if (req.method === "PATCH") {
+    return handleUpdate(req, res);
+  }
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -94,6 +97,40 @@ async function handleSearch(req, res) {
     return res.status(200).json(clientes);
   } catch (error) {
     console.error("Error searching clientes:", error);
+    return res.status(500).json({ error: error.message });
+  }
+}
+
+async function handleUpdate(req, res) {
+  const { id, nombre, telefono, email } = req.body;
+  if (!id) {
+    return res.status(400).json({ error: "Missing id" });
+  }
+
+  try {
+    const properties = {};
+
+    if (nombre !== undefined) {
+      properties.title = {
+        title: [{ text: { content: nombre.trim() } }],
+      };
+    }
+    if (telefono !== undefined) {
+      properties["Teléfono"] = {
+        phone_number: telefono || null,
+      };
+    }
+    if (email !== undefined) {
+      properties["Correo electrónico"] = {
+        email: email || null,
+      };
+    }
+
+    await notion.pages.update({ page_id: id, properties });
+
+    return res.status(200).json({ ok: true });
+  } catch (error) {
+    console.error("Error updating cliente:", error);
     return res.status(500).json({ error: error.message });
   }
 }

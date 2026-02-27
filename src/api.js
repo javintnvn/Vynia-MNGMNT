@@ -102,6 +102,13 @@ export const notion = {
     return apiCall(`/clientes?q=${encodeURIComponent(q)}`);
   },
 
+  async updateCliente(id, { nombre, telefono, email }) {
+    return apiCall("/clientes", {
+      method: "PATCH",
+      body: JSON.stringify({ id, nombre, telefono, email }),
+    });
+  },
+
   async findOrCreateCliente(nombre, telefono) {
     return apiCall("/clientes", {
       method: "POST",
