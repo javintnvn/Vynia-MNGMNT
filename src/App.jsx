@@ -390,11 +390,14 @@ export default function VyniaApp() {
       setPedidos(mapped);
       notify("ok", `${mapped.length} pedido${mapped.length !== 1 ? "s" : ""} cargado${mapped.length !== 1 ? "s" : ""}`);
       // Enrich pedidos with importe in background (single setState after all batches)
-      if (mapped.length > 0) {
+      // Cap at 50 pedidos to avoid hundreds of API calls when loading "Todos"
+      const MAX_ENRICH = 50;
+      const toEnrich = mapped.slice(0, MAX_ENRICH);
+      if (toEnrich.length > 0) {
         (async () => {
           const allUpdates = {};
-          for (let i = 0; i < mapped.length; i += 5) {
-            await Promise.all(mapped.slice(i, i + 5).map(async (ped) => {
+          for (let i = 0; i < toEnrich.length; i += 5) {
+            await Promise.all(toEnrich.slice(i, i + 5).map(async (ped) => {
               try {
                 const prods = await notion.loadRegistros(ped.id);
                 if (!Array.isArray(prods)) return;

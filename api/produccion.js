@@ -3,6 +3,9 @@ import { notion, cached, delay } from "./_notion.js";
 const DB_PEDIDOS = "1c418b3a-38b1-81a1-9f3c-da137557fcf6";
 const DB_REGISTROS = "1d418b3a-38b1-808b-9afb-c45193c1270b";
 
+const _clientCache = new Map();
+const CLIENT_CACHE_TTL = 300000;
+
 function extractTitle(prop) {
   if (!prop || prop.type !== "title") return "";
   return (prop.title || []).map((t) => t.plain_text).join("");
@@ -77,19 +80,30 @@ export default async function handler(req, res) {
       if (clientId) clientIdsToFetch.add(clientId);
     }
 
-    // Fetch client names in batches of 5
+    // Fetch client names in batches of 5 (with persistent cache)
     const clientNames = {};
-    const clientIds = [...clientIdsToFetch];
+    const now = Date.now();
+    const uncachedIds = [];
+    for (const cid of clientIdsToFetch) {
+      const entry = _clientCache.get(cid);
+      if (entry && now - entry.ts < CLIENT_CACHE_TTL) {
+        clientNames[cid] = entry.name;
+      } else {
+        uncachedIds.push(cid);
+      }
+    }
     const fetchClient = async (cid) => {
       try {
         const clientPage = await notion.pages.retrieve({ page_id: cid });
         const titleProp = Object.values(clientPage.properties).find(p => p.type === "title");
-        clientNames[cid] = titleProp ? (titleProp.title || []).map(t => t.plain_text).join("") : "";
+        const name = titleProp ? (titleProp.title || []).map(t => t.plain_text).join("") : "";
+        clientNames[cid] = name;
+        _clientCache.set(cid, { name, ts: Date.now() });
       } catch { clientNames[cid] = ""; }
     };
-    for (let i = 0; i < clientIds.length; i += BATCH_SIZE) {
-      await Promise.all(clientIds.slice(i, i + BATCH_SIZE).map(fetchClient));
-      if (i + BATCH_SIZE < clientIds.length) await delay(200);
+    for (let i = 0; i < uncachedIds.length; i += BATCH_SIZE) {
+      await Promise.all(uncachedIds.slice(i, i + BATCH_SIZE).map(fetchClient));
+      if (i + BATCH_SIZE < uncachedIds.length) await delay(200);
     }
 
     // Assign client names to pedidos

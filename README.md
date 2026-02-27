@@ -212,4 +212,6 @@ Se configura en `.env.local` para desarrollo local y en el dashboard de Vercel p
 - **Static assets**: Cache-Control immutable para assets hasheados en Vercel
 - **Retry automatico**: Proxy en `_notion.js` reintenta 429/502/503 con backoff exponencial (transparente para endpoints)
 - **Cache servidor**: `productos` 5min, `produccion` 30s (Map en instancia warm Vercel, independiente por funcion serverless)
+- **Cache clientes**: nombres de clientes cacheados 5min a nivel de modulo en pedidos.js y produccion.js (evita re-fetch de pages.retrieve en cada request)
+- **Enrich cap**: enriquecimiento de importes limitado a 50 pedidos (evita cientos de API calls al cargar "Todos")
 - **Write throttling**: 300ms entre archives en DELETE registros, 200ms entre batches de queries paralelas en pedidos/produccion
