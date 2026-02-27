@@ -1495,7 +1495,7 @@ export default function VyniaApp() {
                           const cfg = ESTADOS[next];
                           const action = ESTADO_ACTION[next] || cfg.label;
                           return (
-                            <button className="estado-btn" title={action} onClick={() => cambiarEstado(p, next)}
+                            <button className="estado-btn" title={`→ ${next}`} onClick={() => cambiarEstado(p, next)}
                               style={{
                                 flex: 1, padding: "10px 0", borderRadius: 12,
                                 border: `1.5px solid ${cfg.color}50`,
