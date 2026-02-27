@@ -88,8 +88,6 @@ export default async function handler(req, res) {
           numPedido: p["Nº Pedido"]?.unique_id?.number || 0,
           fecha: extractDateStart(p["Fecha entrega"]),
           estado: effectiveEstado,
-          notas: extractRichText(p["Notas"]),
-          pagado: p["Pagado al reservar"]?.checkbox || false,
           _id: page.id,
           productos: [],
         };
