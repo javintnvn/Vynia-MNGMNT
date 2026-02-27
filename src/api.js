@@ -177,7 +177,15 @@ export const notion = {
     });
   },
 
+  async findOrphanRegistros() {
+    return apiCall(`/registros?orphans=true&_t=${Date.now()}`);
+  },
+
   async loadProduccion(fecha) {
     return apiCall(`/produccion?fecha=${fecha}`);
+  },
+
+  async loadProductos() {
+    return apiCall("/productos");
   },
 };

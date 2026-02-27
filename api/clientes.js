@@ -1,6 +1,5 @@
-import { Client } from "@notionhq/client";
+import { notion } from "./_notion.js";
 
-const notion = new Client({ auth: process.env.NOTION_TOKEN });
 const DB_CLIENTES = "1c418b3a-38b1-811f-b3ab-ea7a5e513ace";
 
 export default async function handler(req, res) {

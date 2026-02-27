@@ -12,65 +12,82 @@ const VYNIA_LOGO_MD = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHcAAAB4CAY
 
 
 
-// ─── PRODUCT CATALOG (pre-loaded for instant search) ───
-const CATALOGO = [
+// ─── PRODUCT CATALOG FALLBACK (used for DEMO mode and initial load) ───
+const CATALOGO_FALLBACK = [
   { nombre: "Cookies de chocolate y avellanas", precio: 2.60, cat: "Pastelería" },
   { nombre: "Cookies de chocolate blanco y pistachos", precio: 2.80, cat: "Pastelería" },
-  { nombre: "Cookie Oreo", precio: 2.60, cat: "Pastelería" },
-  { nombre: "Cookies veganas", precio: 2.60, cat: "Pastelería" },
-  { nombre: "Cookies de kinder", precio: 2.60, cat: "Pastelería" },
-  { nombre: "Brownie", precio: 3.00, cat: "Pastelería" },
-  { nombre: "Brownie individual", precio: 2.50, cat: "Pastelería" },
-  { nombre: "Brownie 500gr", precio: 12.00, cat: "Pastelería" },
-  { nombre: "Brownie San Valentín", precio: 3.50, cat: "Pastelería" },
-  { nombre: "Brookie", precio: 3.00, cat: "Pastelería" },
-  { nombre: "Brookie San Valentín", precio: 3.50, cat: "Pastelería" },
-  { nombre: "Blondie", precio: 3.00, cat: "Pastelería" },
+  { nombre: "Cookie Oreo", precio: 2.30, cat: "Pastelería" },
+  { nombre: "Cookies veganas", precio: 2.30, cat: "Pastelería" },
+  { nombre: "Cookies de kinder", precio: 2.50, cat: "Pastelería" },
+  { nombre: "Brownie", precio: 4.00, cat: "Pastelería" },
+  { nombre: "Brownie individual", precio: 1.80, cat: "Pastelería" },
+  { nombre: "Brownie 500gr", precio: 16.70, cat: "Pastelería" },
+  { nombre: "Brownie San Valentín", precio: 5.00, cat: "Pastelería" },
+  { nombre: "Brookie", precio: 3.20, cat: "Pastelería" },
+  { nombre: "Brookie San Valentín", precio: 5.00, cat: "Pastelería" },
+  { nombre: "Blondie", precio: 2.60, cat: "Pastelería" },
   { nombre: "Viñacaos", precio: 2.50, cat: "Pastelería" },
   { nombre: "Bizcocho de naranja", precio: 3.30, cat: "Pastelería" },
-  { nombre: "Bizcocho de limón", precio: 3.30, cat: "Pastelería" },
-  { nombre: "Bizcocho de limón 400 g", precio: 6.00, cat: "Pastelería" },
-  { nombre: "Bizcocho de Naranja 500gr", precio: 7.50, cat: "Pastelería" },
+  { nombre: "Bizcocho de limón", precio: 3.00, cat: "Pastelería" },
+  { nombre: "Bizcocho de limón 400 g", precio: 12.00, cat: "Pastelería" },
+  { nombre: "Bizcocho de Naranja 500gr", precio: 15.00, cat: "Pastelería" },
   { nombre: "Bizcocho de chocolate con nata", precio: 4.50, cat: "Pastelería" },
+  { nombre: "Bizcocho chocolate y plátano (grande)", precio: 24.00, cat: "Pastelería" },
+  { nombre: "Bizcocho de plátano y chocolate", precio: 3.20, cat: "Pastelería" },
   { nombre: "Magdalenas", precio: 1.50, cat: "Pastelería" },
+  { nombre: "Magdalenas (azúcar de coco)", precio: 1.60, cat: "Pastelería" },
   { nombre: "Cupcakes", precio: 3.00, cat: "Pastelería" },
-  { nombre: "Bollitos", precio: 1.80, cat: "Pastelería" },
-  { nombre: "Bollo Adolescente", precio: 2.00, cat: "Pastelería" },
-  { nombre: "Bollito (cafetería)", precio: 1.50, cat: "Pastelería" },
-  { nombre: "Roll Fresa", precio: 3.50, cat: "Pastelería" },
+  { nombre: "Bollitos", precio: 1.50, cat: "Panadería" },
+  { nombre: "Bollo Adolescente", precio: 1.70, cat: "Panadería" },
+  { nombre: "Roll Fresa", precio: 3.20, cat: "Pastelería" },
   { nombre: "Roll Manzana", precio: 3.50, cat: "Pastelería" },
-  { nombre: "Rollo de canela", precio: 3.00, cat: "Pastelería" },
-  { nombre: "Granola 250Gr.", precio: 5.50, cat: "Pastelería" },
+  { nombre: "Rollo de canela", precio: 3.50, cat: "Pastelería" },
+  { nombre: "Granola 250Gr.", precio: 6.50, cat: "Pastelería" },
   { nombre: "Arroz con leche", precio: 2.00, cat: "Pastelería" },
   { nombre: "Arroz con leche sin lactosa", precio: 2.00, cat: "Pastelería" },
-  { nombre: "Tarta de queso", precio: 25.00, cat: "Pastelería" },
+  { nombre: "Tarta de queso", precio: 5.50, cat: "Pastelería" },
+  { nombre: "Tarta de queso sin lactosa", precio: 5.50, cat: "Pastelería" },
+  { nombre: "Tarta de queso de pistacho", precio: 6.50, cat: "Pastelería" },
+  { nombre: "Tarta de queso de pistacho sin lactosa", precio: 7.50, cat: "Pastelería" },
+  { nombre: "Tarta de queso con frutos rojos San Valentín", precio: 7.00, cat: "Pastelería" },
+  { nombre: "Tarta queso y pistacho San Valentín", precio: 8.00, cat: "Pastelería" },
   { nombre: "Vasito Tarta de la abuela", precio: 3.00, cat: "Pastelería" },
-  { nombre: "Mini tarta", precio: 15.00, cat: "Pastelería" },
-  { nombre: "Marquesas de almendra", precio: 2.50, cat: "Pastelería" },
-  { nombre: "Pestiños", precio: 1.80, cat: "Pastelería" },
-  { nombre: "Porción bizcocho choco", precio: 2.50, cat: "Pastelería" },
-  { nombre: "Mini de queso y turrón", precio: 3.00, cat: "Pastelería" },
+  { nombre: "Mini tarta", precio: 5.00, cat: "Pastelería" },
+  { nombre: "Mini tarta (bizc. choc y crema kinder)", precio: 6.00, cat: "Pastelería" },
+  { nombre: "Marquesas de almendra", precio: 1.30, cat: "Pastelería" },
+  { nombre: "Pestiños", precio: 1.00, cat: "Pastelería" },
+  { nombre: "Porción bizcocho choco", precio: 2.00, cat: "Pastelería" },
+  { nombre: "Mini de queso y turrón", precio: 9.00, cat: "Pastelería" },
+  { nombre: "Postre chocolate Navidad", precio: 9.50, cat: "Pastelería" },
+  { nombre: "Postre de San Valentín", precio: 7.50, cat: "Pastelería" },
   { nombre: "Mantecados de chocolate y almendra", precio: 0.90, cat: "Pastelería" },
   { nombre: "Mantecados de aceite de oliva", precio: 0.90, cat: "Pastelería" },
   { nombre: "Polvorón de almendra", precio: 0.90, cat: "Pastelería" },
   { nombre: "Polvorón de limón", precio: 0.90, cat: "Pastelería" },
   { nombre: "Polvorón de chocolate", precio: 0.90, cat: "Pastelería" },
-  { nombre: "Roscos de anís", precio: 1.50, cat: "Pastelería" },
+  { nombre: "Roscos de anís", precio: 1.30, cat: "Pastelería" },
   { nombre: "Tarta de queso y turrón (6-8 pax)", precio: 33.00, cat: "Pastelería" },
   { nombre: "Tarta de queso y turrón (10-12 pax)", precio: 49.00, cat: "Pastelería" },
-  { nombre: "Barra de pan", precio: 3.50, cat: "Panadería" },
+  { nombre: "Tarta de queso y pistacho (10-12 pax)", precio: 47.00, cat: "Pastelería" },
+  { nombre: "Torrijas Azúcar y Canela", precio: 1.80, cat: "Pastelería" },
+  { nombre: "Torrijas Azúcar y Canela SIN LACTOSA", precio: 1.80, cat: "Pastelería" },
+  { nombre: "Torrijas Miel", precio: 1.80, cat: "Pastelería" },
+  { nombre: "Torrijas Miel SIN LACTOSA", precio: 1.80, cat: "Pastelería" },
+  { nombre: "Torrijas sin proteína de la leche de la vaca", precio: 1.80, cat: "Pastelería" },
+  { nombre: "Barra de pan", precio: 2.00, cat: "Panadería" },
   { nombre: "Hogaza rústica", precio: 5.50, cat: "Panadería" },
-  { nombre: "1 kg Hogaza rústica", precio: 9.00, cat: "Panadería" },
+  { nombre: "Hogaza Pan de miel y semillas", precio: 5.50, cat: "Panadería" },
+  { nombre: "1 kg Hogaza rústica", precio: 11.00, cat: "Panadería" },
   { nombre: "1 kg Hogaza Miel y semillas", precio: 11.00, cat: "Panadería" },
   { nombre: "Pan de molde con semillas 1/2", precio: 6.50, cat: "Panadería" },
-  { nombre: "Pan de hamburguesa", precio: 2.50, cat: "Panadería" },
-  { nombre: "Chapata", precio: 2.50, cat: "Panadería" },
+  { nombre: "Pan de hamburguesa", precio: 3.00, cat: "Panadería" },
+  { nombre: "Chapata", precio: 1.70, cat: "Panadería" },
   { nombre: "Pan de Torrijas", precio: 7.00, cat: "Panadería" },
 ].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 
-// Pre-computed price lookup (avoids rebuilding on every pedido load)
-const PRICE_MAP = {};
-CATALOGO.forEach(c => { PRICE_MAP[c.nombre.toLowerCase().trim()] = c.precio; });
+// Pre-computed price lookup (rebuilt when catalog loads from Notion)
+let PRICE_MAP = {};
+CATALOGO_FALLBACK.forEach(c => { PRICE_MAP[c.nombre.toLowerCase().trim()] = c.precio; });
 
 // Most ordered products (for quick access)
 const FRECUENTES = [
@@ -107,6 +124,7 @@ const I = {
   Printer: (p = {}) => <svg width={p.s||18} height={p.s||18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>,
   Edit: (p = {}) => <svg width={p.s||14} height={p.s||14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>,
   Ext: (p = {}) => <svg width={p.s||14} height={p.s||14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>,
+  Broom: (p = {}) => <svg width={p.s||18} height={p.s||18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m13 11 9-9"/><path d="M14.6 12.6c.8.8.8 2 0 2.8l-7.8 7.8H2v-4.8l7.8-7.8c.8-.8 2-.8 2.8 0z"/></svg>,
 };
 
 // ─── DATE HELPERS ───
@@ -189,6 +207,7 @@ export default function VyniaApp() {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState(null);     // { type: "ok"|"err", msg }
   const [apiMode, setApiMode] = useState("live"); // demo | live
+  const [catalogo, setCatalogo] = useState(CATALOGO_FALLBACK);
   const [tooltip, setTooltip] = useState(null); // { text, x, y }
 
   // ─── GLOBAL TOOLTIP (long-press on mobile, CSS hover on desktop) ───
@@ -249,6 +268,7 @@ export default function VyniaApp() {
   const [busqueda, setBusqueda] = useState("");
   const [allPedidos, setAllPedidos] = useState(null); // loaded on search
   const busquedaTimer = useRef(null);
+  const clienteWrapperRef = useRef(null);
 
   // Nuevo pedido form
   const [cliente, setCliente] = useState("");
@@ -262,6 +282,7 @@ export default function VyniaApp() {
   const [lineas, setLineas] = useState([]);
   const [searchProd, setSearchProd] = useState("");
   const [showCatFull, setShowCatFull] = useState(false);
+  const [createResult, setCreateResult] = useState(null); // { status: "ok"|"err", cliente?, total?, pedidoId?, message? }
 
   // Produccion diaria
   const [produccionData, setProduccionData] = useState([]);
@@ -383,6 +404,31 @@ export default function VyniaApp() {
 
   useEffect(() => { loadPedidos(); loadProduccion(); }, [apiMode]);
 
+  // ─── Load product catalog from Notion (source of truth) ───
+  useEffect(() => {
+    if (apiMode === "demo") { setCatalogo(CATALOGO_FALLBACK); return; }
+    notion.loadProductos()
+      .then(prods => {
+        if (Array.isArray(prods) && prods.length > 0) {
+          setCatalogo(prods);
+          PRICE_MAP = {};
+          prods.forEach(c => { PRICE_MAP[c.nombre.toLowerCase().trim()] = c.precio; });
+        }
+      })
+      .catch(() => { /* fallback silently */ });
+  }, [apiMode]);
+
+  // ─── Close client suggestions on click outside ───
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (clienteWrapperRef.current && !clienteWrapperRef.current.contains(e.target)) {
+        setClienteSuggestions([]);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   // ─── LOAD PRODUCTS FOR SELECTED PEDIDO ───
   useEffect(() => {
     if (!selectedPedido || apiMode === "demo") return;
@@ -501,6 +547,25 @@ export default function VyniaApp() {
     }
   };
 
+  // ─── CLEANUP ORPHAN REGISTROS ───
+  const cleanupOrphanRegistros = async () => {
+    if (apiMode === "demo") { notify("err", "No disponible en modo demo"); return; }
+    notify("ok", "Buscando registros huérfanos...");
+    try {
+      const { orphanIds = [], count = 0 } = await notion.findOrphanRegistros();
+      if (count === 0) { notify("ok", "No hay registros huérfanos"); return; }
+      notify("ok", `${count} huérfanos encontrados. Archivando...`);
+      for (let i = 0; i < orphanIds.length; i += 10) {
+        await notion.deleteRegistros(orphanIds.slice(i, i + 10));
+        notify("ok", `Archivando... ${Math.min(i + 10, count)}/${count}`);
+      }
+      invalidateApiCache();
+      notify("ok", `Limpieza completada: ${count} registros archivados`);
+    } catch (err) {
+      notify("err", "Error limpieza: " + (err.message || "").substring(0, 100));
+    }
+  };
+
   // ─── CHANGE DELIVERY DATE ───
   const cambiarFechaPedido = async (pedido, newFecha) => {
     if (!newFecha) return;
@@ -540,7 +605,7 @@ export default function VyniaApp() {
   };
 
   const editProductosFiltrados = editSearchProd
-    ? CATALOGO.filter(p => p.nombre.toLowerCase().includes(editSearchProd.toLowerCase()))
+    ? catalogo.filter(p => p.nombre.toLowerCase().includes(editSearchProd.toLowerCase()))
     : [];
 
   const guardarModificacion = async (pedido, newLineas) => {
@@ -608,8 +673,9 @@ export default function VyniaApp() {
     if (apiMode === "demo") {
       const total = lineas.reduce((s, l) => s + l.cantidad * l.precio, 0);
       const prodsStr = lineas.map(l => `${l.cantidad}x ${l.nombre}`).join(", ");
+      const demoId = `demo-${Date.now()}`;
       setPedidos(ps => [{
-        id: `demo-${Date.now()}`,
+        id: demoId,
         nombre: `Pedido ${cliente}`,
         cliente,
         tel: telefono,
@@ -624,8 +690,8 @@ export default function VyniaApp() {
         incidencia: false,
       }, ...ps]);
       notify("ok", `✓ Pedido creado: ${cliente} — €${total.toFixed(2)}`);
+      setCreateResult({ status: "ok", cliente, total, pedidoId: demoId });
       resetForm();
-      setTab("pedidos");
       return;
     }
 
@@ -640,20 +706,38 @@ export default function VyniaApp() {
       }
 
       // 2. Create order + line items (handled by api.js)
-      await notion.crearPedido(
+      const pedidoRes = await notion.crearPedido(
         cliente.trim(), clientePageId, fecha, hora, pagado, notas, lineas
       );
 
       const total = lineas.reduce((s, l) => s + l.cantidad * l.precio, 0);
       notify("ok", `✓ Pedido creado en Notion: ${cliente} — €${total.toFixed(2)}`);
+      const savedCliente = cliente.trim();
+      setCreateResult({ status: "ok", cliente: savedCliente, total, pedidoId: pedidoRes.id });
       resetForm();
-      setTab("pedidos");
       loadPedidos();
       invalidateProduccion(fecha); invalidateSearchCache();
     } catch (err) {
       notify("err", "Error: " + (err.message || "").substring(0, 100));
+      setCreateResult({ status: "err", message: err.message || "Error desconocido" });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const verPedidoCreado = (pedidoId) => {
+    setCreateResult(null);
+    setTab("pedidos");
+    const found = pedidos.find(p => p.id === pedidoId);
+    if (found) {
+      setSelectedPedido({
+        ...found,
+        pedidoTitulo: found.nombre,
+        telefono: found.tel,
+        productos: typeof found.productos === "string"
+          ? parseProductsStr(found.productos)
+          : (Array.isArray(found.productos) ? found.productos : []),
+      });
     }
   };
 
@@ -750,8 +834,8 @@ export default function VyniaApp() {
   const productosFiltrados = useMemo(() => {
     if (!searchProd) return [];
     const q = searchProd.toLowerCase();
-    return CATALOGO.filter(p => p.nombre.toLowerCase().includes(q));
-  }, [searchProd]);
+    return catalogo.filter(p => p.nombre.toLowerCase().includes(q));
+  }, [searchProd, catalogo]);
 
   // ─── PRODUCTION VIEW (memoized) ───
   const { prodView, totalPendiente, totalRecogido, activeProductCount } = useMemo(() => {
@@ -809,6 +893,10 @@ export default function VyniaApp() {
                 margin: 0, color: "#4F6867", letterSpacing: "0.08em",
                 textTransform: "uppercase",
               }}>Pedidos</h1>
+              <span style={{
+                fontFamily: "Inter, sans-serif", fontSize: 9, color: "#A2C2D0",
+                letterSpacing: "0.03em",
+              }}>v{__APP_VERSION__} · {new Date(__APP_BUILD_DATE__).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}</span>
             </div>
           </div>
 
@@ -864,7 +952,14 @@ export default function VyniaApp() {
             }}>
               <I.Printer />
             </button>
-            <button title="Recargar pedidos" onClick={loadPedidos} style={{
+            <button title="Limpiar registros huérfanos" onClick={cleanupOrphanRegistros} style={{
+              width: 34, height: 34, borderRadius: 9, border: "1px solid #A2C2D0",
+              background: "#fff", cursor: "pointer", display: "flex",
+              alignItems: "center", justifyContent: "center", color: "#4F6867",
+            }}>
+              <I.Broom />
+            </button>
+            <button title="Recargar pedidos" onClick={() => loadPedidos()} style={{
               width: 34, height: 34, borderRadius: 9, border: "1px solid #A2C2D0",
               background: "#fff", cursor: "pointer", display: "flex",
               alignItems: "center", justifyContent: "center", color: "#4F6867",
@@ -1265,7 +1360,74 @@ export default function VyniaApp() {
         {/* ══════════════════════════════════════════
             TAB: NUEVO PEDIDO
         ══════════════════════════════════════════ */}
-        {tab === "nuevo" && (
+        {tab === "nuevo" && createResult ? (
+          <div style={{ paddingTop: 16 }}>
+            {createResult.status === "ok" ? (
+              <div style={{
+                textAlign: "center", padding: "60px 20px",
+                background: "#fff", borderRadius: 16, marginTop: 12,
+                border: "1px solid #A2C2D0",
+              }}>
+                <div style={{
+                  width: 64, height: 64, borderRadius: "50%",
+                  background: "linear-gradient(135deg, #4F6867, #3D5655)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  margin: "0 auto 16px",
+                }}>
+                  <I.Check s={32} />
+                </div>
+                <h2 style={{
+                  fontFamily: "'Roboto Condensed', sans-serif",
+                  fontSize: 22, fontWeight: 700, color: "#1B1C39", margin: "0 0 6px",
+                }}>Pedido creado</h2>
+                <p style={{ color: "#4F6867", fontSize: 14, margin: 0 }}>
+                  {createResult.cliente} — {createResult.total.toFixed(2)}€
+                </p>
+                <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 28 }}>
+                  <button onClick={() => verPedidoCreado(createResult.pedidoId)} style={{
+                    padding: "11px 22px", borderRadius: 10, border: "none", fontSize: 13, fontWeight: 700,
+                    cursor: "pointer", color: "#fff",
+                    background: "linear-gradient(135deg, #4F6867, #3D5655)",
+                    boxShadow: "0 2px 8px rgba(79,104,103,0.3)",
+                  }}>Ver pedido</button>
+                  <button onClick={() => setCreateResult(null)} style={{
+                    padding: "11px 22px", borderRadius: 10, fontSize: 13, fontWeight: 600,
+                    cursor: "pointer", color: "#4F6867",
+                    border: "1.5px solid #A2C2D0", background: "transparent",
+                  }}>Crear otro</button>
+                </div>
+              </div>
+            ) : (
+              <div style={{
+                textAlign: "center", padding: "60px 20px",
+                background: "#FDE8E5", borderRadius: 16, marginTop: 12,
+                border: "1px solid #EF9A9A",
+              }}>
+                <div style={{
+                  width: 64, height: 64, borderRadius: "50%",
+                  background: "#C62828",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  margin: "0 auto 16px", color: "#fff", fontSize: 28, fontWeight: 800,
+                }}>!</div>
+                <h2 style={{
+                  fontFamily: "'Roboto Condensed', sans-serif",
+                  fontSize: 22, fontWeight: 700, color: "#C62828", margin: "0 0 6px",
+                }}>No se pudo crear el pedido</h2>
+                <p style={{ color: "#4F6867", fontSize: 13, margin: "0 0 4px", overflowWrap: "break-word" }}>
+                  {createResult.message}
+                </p>
+                <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 28 }}>
+                  <button onClick={() => setCreateResult(null)} style={{
+                    padding: "11px 22px", borderRadius: 10, border: "none", fontSize: 13, fontWeight: 700,
+                    cursor: "pointer", color: "#fff",
+                    background: "#C62828",
+                    boxShadow: "0 2px 8px rgba(198,40,40,0.3)",
+                  }}>Reintentar</button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : tab === "nuevo" && (
           <div style={{ paddingTop: 16 }}>
             <h2 style={{
               fontFamily: "'Roboto Condensed', sans-serif", fontSize: 22, fontWeight: 700,
@@ -1288,10 +1450,10 @@ export default function VyniaApp() {
               <label style={labelStyle}>
                 <I.User s={13} /> Cliente
               </label>
-              <div style={{ position: "relative" }}>
+              <div ref={clienteWrapperRef} style={{ position: "relative" }}>
                 <input placeholder="Nombre del cliente" value={cliente}
                   onChange={e => onClienteChange(e.target.value)}
-                  onBlur={() => setTimeout(() => setClienteSuggestions([]), 200)}
+                  onKeyDown={e => { if (e.key === "Escape") setClienteSuggestions([]); }}
                   autoComplete="off"
                   style={inputStyle} />
                 {clienteSuggestions.length > 0 && (
@@ -1445,7 +1607,7 @@ export default function VyniaApp() {
                   </p>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                     {FRECUENTES.map(name => {
-                      const p = CATALOGO.find(c => c.nombre === name);
+                      const p = catalogo.find(c => c.nombre === name);
                       if (!p) return null;
                       return (
                         <button key={name} onClick={() => addProducto(p)}
@@ -1983,7 +2145,7 @@ export default function VyniaApp() {
                     )}
                     <button onClick={() => {
                       const initial = (selectedPedido.productos || []).map(p => {
-                        const cat = CATALOGO.find(c => c.nombre.toLowerCase().trim() === (p.nombre || "").toLowerCase().trim());
+                        const cat = catalogo.find(c => c.nombre.toLowerCase().trim() === (p.nombre || "").toLowerCase().trim());
                         return { nombre: p.nombre, cantidad: p.unidades || p.cantidad || 1, precio: cat?.precio || 0, cat: cat?.cat || "" };
                       });
                       setEditLineas(initial);
@@ -2111,7 +2273,7 @@ export default function VyniaApp() {
           { key: "nuevo", icon: <I.Plus s={22} />, label: "Nuevo", tip: "Crear nuevo pedido" },
           { key: "produccion", icon: <I.Store s={22} />, label: "Producción", tip: "Ver producción diaria" },
         ].map(t => (
-          <button title={t.tip} key={t.key} onClick={() => { setTab(t.key); if (t.key === "nuevo") resetForm(); if (t.key !== "pedidos") { setBusqueda(""); setAllPedidos(null); } if (t.key === "produccion" && produccionData.length === 0) loadProduccion(); }}
+          <button title={t.tip} key={t.key} onClick={() => { setTab(t.key); setCreateResult(null); if (t.key === "nuevo") resetForm(); if (t.key !== "pedidos") { setBusqueda(""); setAllPedidos(null); } if (t.key === "produccion" && produccionData.length === 0) loadProduccion(); }}
             style={{
               flex: 1, padding: "6px 0", border: "none",
               background: "transparent", cursor: "pointer",

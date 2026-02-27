@@ -16,18 +16,20 @@ Sistema de gestion de pedidos para **Vynia**, conectado a Notion como base de da
 - Toggle de recogido y no acude
 - Modificar productos y cantidades de un pedido existente desde el modal (borra registros anteriores y recrea)
 - Cancelar pedido (archiva en Notion) y cambiar fecha de entrega desde el modal
-- Importe total calculado por pedido (carga progresiva en background desde CATALOGO + Registros)
+- Importe total calculado por pedido (carga progresiva en background desde catalogo Notion + Registros)
 - Clasificacion automatica Manana/Tarde dentro de cada fecha (detecta "tarde" en notas o hora >= 17:00)
 - Badges: PAGADO, INCIDENCIA, TARDE
 - Stats bar con contadores (total, pendientes, recogidos)
 - Boton "Ver en Notion" en modal de detalle (abre la pagina del pedido en Notion)
+- Boton limpieza de registros huerfanos (archiva registros sin pedido asociado, con feedback progresivo)
 
 ### Nuevo Pedido
-- Formulario: cliente (autocompletado) + telefono
+- Formulario: cliente (autocompletado con sugerencias, se cierra con click fuera o Escape) + telefono
 - Selector de fecha (presets Hoy/Manana/Pasado + datepicker + hora)
 - Productos del catalogo con busqueda y cantidades
 - Toggle pagado + notas
 - Crea cliente en Notion si no existe
+- Confirmacion post-creacion: pantalla de exito con "Ver pedido" (abre modal) y "Crear otro", o pantalla de error con mensaje y "Reintentar" (sin perder datos del formulario)
 
 ### Produccion
 - Vista agregada de productos por dia con cantidades totales
@@ -37,6 +39,9 @@ Sistema de gestion de pedidos para **Vynia**, conectado a Notion como base de da
 - Click en producto expande los pedidos que lo contienen (recogidos aparecen tachados con badge RECOGIDO)
 - Click en pedido abre modal con detalle completo (cliente, telefono, fecha, productos, badges, notas)
 - Precarga automatica al iniciar la app para carga instantanea
+
+### General
+- Version de la app y fecha de despliegue visibles en el header (junto al logo)
 
 ## Stack
 
@@ -52,11 +57,13 @@ Sistema de gestion de pedidos para **Vynia**, conectado a Notion como base de da
 ```
 Vynia-MNGMNT/
 ├── api/                    # Vercel Serverless Functions
+│   ├── _notion.js          # Modulo compartido: Notion client con retry, cache servidor, delay
 │   ├── pedidos.js          # GET (listar con filtro fecha/estado) + POST (crear pedido)
 │   ├── pedidos/[id].js     # PATCH (toggle recogido, no acude, etc.)
 │   ├── clientes.js         # GET (buscar) + POST (buscar o crear cliente)
-│   ├── registros.js        # GET (productos de un pedido) + POST (crear linea) + DELETE (archivar lineas)
-│   └── produccion.js       # GET (produccion diaria agregada con clientes, incluye recogidos)
+│   ├── registros.js        # GET (productos de un pedido | huerfanos) + POST (crear linea) + DELETE (archivar lineas)
+│   ├── produccion.js       # GET (produccion diaria agregada con clientes, incluye recogidos)
+│   └── productos.js        # GET (catalogo de productos desde Notion)
 ├── src/
 │   ├── App.jsx             # Componente principal (toda la UI, ~2100 lineas)
 │   └── api.js              # Cliente API frontend (wrapper fetch)
@@ -92,8 +99,8 @@ Vynia-MNGMNT/
 - Devuelve `{ id, created: boolean }`
 
 ### GET /api/registros
-- Query params: `pedidoId=<notion_page_id>`
-- Devuelve productos de un pedido: `[{ id, nombre, unidades }]`
+- Query params: `pedidoId=<notion_page_id>` — productos de un pedido: `[{ id, nombre, unidades }]`
+- Query params: `orphans=true` — registros sin pedido asociado: `{ orphanIds: [string], count: number }`
 
 ### POST /api/registros
 - Body: `{ pedidoPageId, productoNombre, cantidad }`
@@ -110,6 +117,12 @@ Vynia-MNGMNT/
 - Agrega productos con cantidades totales. Incluye flag `recogido` por pedido para discriminar en frontend
 - Resuelve nombres de clientes
 - Devuelve: `{ productos: [{ nombre, totalUnidades, pedidos: [...] }] }`
+
+### GET /api/productos
+- Sin parametros
+- Consulta la BD Productos de Notion con paginacion automatica (cursor)
+- Excluye productos sin nombre o sin precio
+- Devuelve array ordenado alfabeticamente: `[{ nombre, precio, cat }]`
 
 ## Bases de Datos Notion
 
@@ -173,8 +186,30 @@ Se configura en `.env.local` para desarrollo local y en el dashboard de Vercel p
 - El telefono del cliente viene de un rollup en Pedidos: `p["Telefono"]?.rollup?.array[0]?.phone_number`
 - Para obtener nombre de cliente: resolver relacion `"Clientes"` → `notion.pages.retrieve` → buscar propiedad tipo `title`
 - Toda la UI esta en un solo componente `App.jsx` — no hay componentes separados
-- El catalogo de productos esta hardcodeado en `CATALOGO[]` en App.jsx (54 productos con nombre, precio, categoria)
-- El importe de cada pedido se calcula en frontend: se cargan registros en background por lotes de 5, se cruzan nombres de productos con CATALOGO (lookup case-insensitive con `toLowerCase().trim()`) y se suman `unidades * precio`
+- El catalogo de productos se carga dinamicamente desde Notion via `GET /api/productos`. En App.jsx existe `CATALOGO_FALLBACK` (69 productos) como respaldo para modo DEMO o si falla la API
+- Notion es la source of truth para productos y precios: si se crea o modifica un producto en Notion, la app lo refleja sin intervencion
+- Todos los endpoints importan `notion` desde `_notion.js` — modulo compartido que centraliza el client de Notion con retry automatico
+- `_notion.js` usa Proxy JS para interceptar todas las llamadas `notion.*.method()` y envolver con retry (backoff exponencial: 1s → 2s → 4s + jitter random, max 3 reintentos) en errores 429, 502, 503
+- `cached(key, ttlMs, fn)` — cache server-side en Map a nivel de modulo, persiste en instancias warm de Vercel (independiente por funcion serverless)
+- `delay(ms)` — pausa entre operaciones secuenciales de escritura para evitar rafagas que disparen rate limits
+- El importe de cada pedido se calcula en frontend: se cargan registros en background por lotes de 5, se cruzan nombres de productos con PRICE_MAP (lookup case-insensitive con `toLowerCase().trim()`) y se suman `unidades * precio`
 - Modificar pedido usa estrategia delete-all + recreate: archiva todos los registros existentes y crea nuevos
 - Clasificacion Manana/Tarde: `esTarde(p)` detecta keyword "tarde" en notas, hora >= 17 en notas (regex), u hora >= 17 en Fecha entrega
 - Responsive usa hook `useBreakpoint()` con breakpoints JS (no CSS media queries) para mantener coherencia con inline styles
+- Callbacks como `loadPedidos(fechaParam)` NO deben pasarse directamente a `onClick` — usar `onClick={() => loadPedidos()}` para evitar que el evento se interprete como argumento
+- Version y fecha de build se inyectan en compile time via `vite.config.js` `define`: `__APP_VERSION__` (de package.json) y `__APP_BUILD_DATE__` (ISO timestamp del build). Se actualizan automaticamente en cada deploy
+
+## Performance
+
+- **Memoizacion**: `useMemo` en pedidosFiltrados, stats (single-pass), groups, productosFiltrados, prodView
+- **PRICE_MAP**: Lookup de precios a nivel de modulo, se reconstruye dinamicamente al cargar productos de Notion
+- **Batch importe**: Un solo `setPedidos` tras todos los batches (en vez de uno por batch)
+- **esTarde cache**: Resultados cacheados en Set por grupo de fecha (evita 3x llamadas por pedido)
+- **API dedup**: Requests GET en vuelo deduplicados (evita duplicados por clicks rapidos)
+- **API cache**: Cache en memoria con TTL 30s para GETs (evita re-fetch al cambiar tabs)
+- **Vendor chunk**: React separado en chunk independiente (cacheable por separado)
+- **Font optimization**: Solo pesos usados (400-800), preconnect hints
+- **Static assets**: Cache-Control immutable para assets hasheados en Vercel
+- **Retry automatico**: Proxy en `_notion.js` reintenta 429/502/503 con backoff exponencial (transparente para endpoints)
+- **Cache servidor**: `productos` 5min, `produccion` 30s (Map en instancia warm Vercel, independiente por funcion serverless)
+- **Write throttling**: 300ms entre archives en DELETE registros, 200ms entre batches de queries paralelas en pedidos/produccion

@@ -1,6 +1,5 @@
-import { Client } from "@notionhq/client";
+import { notion, cached, delay } from "./_notion.js";
 
-const notion = new Client({ auth: process.env.NOTION_TOKEN });
 const DB_PEDIDOS = "1c418b3a-38b1-81a1-9f3c-da137557fcf6";
 const DB_REGISTROS = "1d418b3a-38b1-808b-9afb-c45193c1270b";
 
@@ -30,6 +29,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    const productos = await cached(`produccion:${fecha}`, 30000, async () => {
     const BATCH_SIZE = 5; // Limit concurrent Notion API calls
     // 1. Get pedidos for the given date (include recogido for frontend discrimination)
     const pedidosRes = await notion.databases.query({
@@ -89,6 +89,7 @@ export default async function handler(req, res) {
     };
     for (let i = 0; i < clientIds.length; i += BATCH_SIZE) {
       await Promise.all(clientIds.slice(i, i + BATCH_SIZE).map(fetchClient));
+      if (i + BATCH_SIZE < clientIds.length) await delay(200);
     }
 
     // Assign client names to pedidos
@@ -142,6 +143,7 @@ export default async function handler(req, res) {
     };
     for (let i = 0; i < pedidoIds.length; i += BATCH_SIZE) {
       await Promise.all(pedidoIds.slice(i, i + BATCH_SIZE).map(fetchRegistros));
+      if (i + BATCH_SIZE < pedidoIds.length) await delay(200);
     }
 
     // Attach full product list to each pedido entry in productosAgg
@@ -152,9 +154,10 @@ export default async function handler(req, res) {
     }
 
     // Sort by name
-    const productos = Object.values(productosAgg).sort((a, b) =>
+    return Object.values(productosAgg).sort((a, b) =>
       a.nombre.localeCompare(b.nombre, "es")
     );
+    }); // end cached
 
     return res.status(200).json({ productos });
   } catch (error) {

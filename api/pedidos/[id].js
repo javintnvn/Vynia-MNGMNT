@@ -1,6 +1,4 @@
-import { Client } from "@notionhq/client";
-
-const notion = new Client({ auth: process.env.NOTION_TOKEN });
+import { notion } from "../_notion.js";
 
 export default async function handler(req, res) {
   if (req.method !== "PATCH") {

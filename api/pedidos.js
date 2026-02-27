@@ -1,6 +1,5 @@
-import { Client } from "@notionhq/client";
+import { notion, cached, delay } from "./_notion.js";
 
-const notion = new Client({ auth: process.env.NOTION_TOKEN });
 const DB_PEDIDOS = "1c418b3a-38b1-81a1-9f3c-da137557fcf6";
 
 function extractTitle(prop) {
@@ -114,6 +113,7 @@ async function handleGet(req, res) {
     };
     for (let i = 0; i < clientIds.length; i += 5) {
       await Promise.all(clientIds.slice(i, i + 5).map(fetchClient));
+      if (i + 5 < clientIds.length) await delay(200);
     }
 
     const pedidos = pedidosRaw.map(ped => ({

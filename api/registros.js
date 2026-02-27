@@ -1,11 +1,11 @@
-import { Client } from "@notionhq/client";
+import { notion, delay } from "./_notion.js";
 
-const notion = new Client({ auth: process.env.NOTION_TOKEN });
 const DB_PRODUCTOS = "1c418b3a-38b1-8186-8da9-cfa6c2f0fcd2";
 const DB_REGISTROS = "1d418b3a-38b1-808b-9afb-c45193c1270b";
 
 export default async function handler(req, res) {
   if (req.method === "GET") {
+    if (req.query.orphans === "true") return handleGetOrphans(req, res);
     return handleGet(req, res);
   }
   if (req.method === "DELETE") {
@@ -77,8 +77,9 @@ async function handleDelete(req, res) {
   }
 
   try {
-    for (const rid of registroIds) {
-      await notion.pages.update({ page_id: rid, archived: true });
+    for (let i = 0; i < registroIds.length; i++) {
+      await notion.pages.update({ page_id: registroIds[i], archived: true });
+      if (i < registroIds.length - 1) await delay(300);
     }
     return res.status(200).json({ ok: true });
   } catch (error) {
@@ -118,6 +119,27 @@ async function handleGet(req, res) {
     return res.status(200).json(productos);
   } catch (error) {
     console.error("Error loading registros:", error);
+    return res.status(500).json({ error: error.message });
+  }
+}
+
+async function handleGetOrphans(req, res) {
+  try {
+    const orphanIds = [];
+    let cursor;
+    do {
+      const resp = await notion.databases.query({
+        database_id: DB_REGISTROS,
+        filter: { property: "Pedidos", relation: { is_empty: true } },
+        start_cursor: cursor,
+        page_size: 100,
+      });
+      for (const page of resp.results) orphanIds.push(page.id);
+      cursor = resp.has_more ? resp.next_cursor : undefined;
+    } while (cursor);
+    return res.status(200).json({ orphanIds, count: orphanIds.length });
+  } catch (error) {
+    console.error("Error finding orphan registros:", error);
     return res.status(500).json({ error: error.message });
   }
 }
