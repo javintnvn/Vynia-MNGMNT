@@ -324,6 +324,8 @@ export default function VyniaApp() {
   const [fichaCliente, setFichaCliente] = useState(null); // selected client card
   const [fichaClientePedidos, setFichaClientePedidos] = useState([]);
   const [fichaClienteLoading, setFichaClienteLoading] = useState(false);
+  const [editingClienteData, setEditingClienteData] = useState(null);
+  const [savingCliente, setSavingCliente] = useState(false);
   const [pedidoFromFicha, setPedidoFromFicha] = useState(false);
   const busquedaTimer = useRef(null);
   const clienteWrapperRef = useRef(null);
@@ -412,8 +414,26 @@ export default function VyniaApp() {
   const closeFicha = () => {
     setFichaCliente(null);
     setFichaClientePedidos([]);
+    setEditingClienteData(null);
     setBusqueda("");
     setSearchResults([]);
+  };
+
+  const saveClienteData = async () => {
+    if (!editingClienteData || !fichaCliente) return;
+    setSavingCliente(true);
+    try {
+      await notion.updateCliente(fichaCliente.id, editingClienteData);
+      const updated = { ...fichaCliente, ...editingClienteData };
+      setFichaCliente(updated);
+      setBusqueda(updated.nombre);
+      setEditingClienteData(null);
+      invalidateApiCache();
+      notify("ok", "Cliente actualizado");
+    } catch {
+      notify("err", "Error al guardar cliente");
+    }
+    setSavingCliente(false);
   };
 
   // Invalidate caches when data changes
@@ -1329,32 +1349,110 @@ export default function VyniaApp() {
                 background: "#fff", borderRadius: 14, border: "1px solid #A2C2D0",
                 padding: "16px 18px", marginBottom: 16,
               }}>
-                <button onClick={closeFicha} style={{
-                  background: "none", border: "none", cursor: "pointer",
-                  fontSize: 13, color: "#4F6867", fontWeight: 600, padding: 0,
-                  marginBottom: 12, display: "flex", alignItems: "center", gap: 4,
-                  fontFamily: "'Roboto Condensed', sans-serif",
-                }}>
-                  ← Volver
-                </button>
-                <div style={{ marginBottom: 14 }}>
-                  <h2 style={{
-                    margin: 0, fontSize: 20, fontWeight: 700, color: "#1B1C39",
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <button onClick={() => { closeFicha(); setEditingClienteData(null); }} style={{
+                    background: "none", border: "none", cursor: "pointer",
+                    fontSize: 13, color: "#4F6867", fontWeight: 600, padding: 0,
+                    display: "flex", alignItems: "center", gap: 4,
                     fontFamily: "'Roboto Condensed', sans-serif",
-                  }}>{fichaCliente.nombre}</h2>
-                  <div style={{ display: "flex", gap: 16, marginTop: 6, flexWrap: "wrap" }}>
-                    {fichaCliente.telefono && (
-                      <span style={{ fontSize: 13, color: "#4F6867", display: "flex", alignItems: "center", gap: 4 }}>
-                        <I.Phone /> {fichaCliente.telefono}
-                      </span>
-                    )}
-                    {fichaCliente.email && (
-                      <span style={{ fontSize: 13, color: "#4F6867", display: "flex", alignItems: "center", gap: 4 }}>
-                        ✉ {fichaCliente.email}
-                      </span>
+                  }}>
+                    ← Volver
+                  </button>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <a href={`https://notion.so/${fichaCliente.id.replace(/-/g, "")}`} target="_blank" rel="noopener noreferrer"
+                      title="Ver en Notion"
+                      style={{
+                        background: "#F5F0EB", border: "1px solid #d4cec6", borderRadius: 8,
+                        padding: "4px 10px", fontSize: 12, color: "#4F6867", fontWeight: 600,
+                        textDecoration: "none", display: "flex", alignItems: "center", gap: 4,
+                        fontFamily: "'Roboto Condensed', sans-serif", cursor: "pointer",
+                      }}>
+                      <span style={{ fontSize: 14 }}>N</span> Notion
+                    </a>
+                    {!editingClienteData ? (
+                      <button onClick={() => setEditingClienteData({ nombre: fichaCliente.nombre, telefono: fichaCliente.telefono || "", email: fichaCliente.email || "" })}
+                        title="Editar cliente"
+                        style={{
+                          background: "#F5F0EB", border: "1px solid #d4cec6", borderRadius: 8,
+                          padding: "4px 10px", fontSize: 12, color: "#4F6867", fontWeight: 600,
+                          fontFamily: "'Roboto Condensed', sans-serif", cursor: "pointer",
+                          display: "flex", alignItems: "center", gap: 4,
+                        }}>
+                        <I.Edit s={13} /> Editar
+                      </button>
+                    ) : (
+                      <button onClick={() => setEditingClienteData(null)}
+                        style={{
+                          background: "#F5F0EB", border: "1px solid #d4cec6", borderRadius: 8,
+                          padding: "4px 10px", fontSize: 12, color: "#C62828", fontWeight: 600,
+                          fontFamily: "'Roboto Condensed', sans-serif", cursor: "pointer",
+                        }}>
+                        Cancelar
+                      </button>
                     )}
                   </div>
                 </div>
+                {editingClienteData ? (
+                  <div style={{ marginBottom: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+                    {[
+                      { label: "Nombre", key: "nombre", type: "text", icon: null },
+                      { label: "Telefono", key: "telefono", type: "tel", icon: <I.Phone s={14} /> },
+                      { label: "Email", key: "email", type: "email", icon: <span style={{ fontSize: 14 }}>✉</span> },
+                    ].map(f => (
+                      <div key={f.key}>
+                        <label style={{ fontSize: 11, fontWeight: 700, color: "#4F6867", textTransform: "uppercase", letterSpacing: "0.06em" }}>{f.label}</label>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                          {f.icon && <span style={{ color: "#A2C2D0" }}>{f.icon}</span>}
+                          <input
+                            value={editingClienteData[f.key]}
+                            onChange={e => setEditingClienteData(prev => ({ ...prev, [f.key]: e.target.value }))}
+                            type={f.type}
+                            style={{
+                              flex: 1, padding: "7px 10px", borderRadius: 8,
+                              border: "1.5px solid #d4cec6", fontSize: 13,
+                              background: "#FDFBF7", color: "#1B1C39", outline: "none",
+                              fontFamily: "'Roboto Condensed', sans-serif",
+                            }}
+                            onFocus={e => e.target.style.borderColor = "#4F6867"}
+                            onBlur={e => e.target.style.borderColor = "#d4cec6"}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    <button onClick={saveClienteData} disabled={savingCliente || !editingClienteData.nombre.trim()}
+                      style={{
+                        marginTop: 4, padding: "8px 0", borderRadius: 8, border: "none",
+                        background: savingCliente ? "#A2C2D0" : "#4F6867", color: "#fff",
+                        fontSize: 13, fontWeight: 700, cursor: savingCliente ? "default" : "pointer",
+                        fontFamily: "'Roboto Condensed', sans-serif",
+                        opacity: !editingClienteData.nombre.trim() ? 0.5 : 1,
+                      }}>
+                      {savingCliente ? "Guardando..." : "Guardar cambios"}
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: 14 }}>
+                    <h2 style={{
+                      margin: 0, fontSize: 20, fontWeight: 700, color: "#1B1C39",
+                      fontFamily: "'Roboto Condensed', sans-serif",
+                    }}>{fichaCliente.nombre}</h2>
+                    <div style={{ display: "flex", gap: 16, marginTop: 6, flexWrap: "wrap" }}>
+                      {fichaCliente.telefono && (
+                        <span style={{ fontSize: 13, color: "#4F6867", display: "flex", alignItems: "center", gap: 4 }}>
+                          <I.Phone /> {fichaCliente.telefono}
+                        </span>
+                      )}
+                      {fichaCliente.email && (
+                        <span style={{ fontSize: 13, color: "#4F6867", display: "flex", alignItems: "center", gap: 4 }}>
+                          ✉ {fichaCliente.email}
+                        </span>
+                      )}
+                      {!fichaCliente.telefono && !fichaCliente.email && (
+                        <span style={{ fontSize: 13, color: "#A2C2D0", fontStyle: "italic" }}>Sin datos de contacto</span>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div style={{
                   fontSize: 11, fontWeight: 700, color: "#4F6867",
                   textTransform: "uppercase", letterSpacing: "0.06em",
