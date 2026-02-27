@@ -344,6 +344,7 @@ export default function VyniaApp() {
   const [selectedPedido, setSelectedPedido] = useState(null);
   const [phoneMenu, setPhoneMenu] = useState(null); // { tel, x, y }
   const [confirmCancel, setConfirmCancel] = useState(null); // pedidoId
+  const [whatsappPrompt, setWhatsappPrompt] = useState(null); // { tel, nombre }
   const [editingFecha, setEditingFecha] = useState(null); // { pedidoId, newFecha }
   const [editingProductos, setEditingProductos] = useState(false);
   const [editLineas, setEditLineas] = useState([]); // [{ nombre, cantidad, precio, cat }]
@@ -568,6 +569,9 @@ export default function VyniaApp() {
     if (apiMode === "demo") {
       setPedidos(ps => ps.map(p => p.id === pedido.id ? { ...p, estado: nuevoEstado } : p));
       notify("ok", ESTADOS[nuevoEstado]?.label || nuevoEstado);
+      if (nuevoEstado === "Listo para recoger" && pedido.telefono) {
+        setWhatsappPrompt({ tel: pedido.telefono, nombre: pedido.cliente || pedido.titulo });
+      }
       return;
     }
     setLoading(true);
@@ -576,7 +580,9 @@ export default function VyniaApp() {
       setPedidos(ps => ps.map(p => p.id === pedido.id ? { ...p, estado: nuevoEstado } : p));
       invalidateProduccion(pedido.fecha); invalidateSearchCache();
       notify("ok", `${ESTADOS[nuevoEstado]?.icon || ""} ${ESTADOS[nuevoEstado]?.label || nuevoEstado}`);
-      // TODO: WhatsApp notification via Make webhook when "Listo para recoger"
+      if (nuevoEstado === "Listo para recoger" && pedido.telefono) {
+        setWhatsappPrompt({ tel: pedido.telefono, nombre: pedido.cliente || pedido.titulo });
+      }
     } catch (err) {
       notify("err", err.message);
     } finally {
@@ -2600,6 +2606,43 @@ export default function VyniaApp() {
                     </button>
                   );
                 })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════
+            WHATSAPP LISTO PROMPT
+        ══════════════════════════════════════════ */}
+        {whatsappPrompt && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 350, background: "rgba(27,28,57,0.45)", display: "flex", alignItems: "center", justifyContent: "center" }}
+            onClick={() => setWhatsappPrompt(null)}>
+            <div style={{
+              background: "rgba(255,255,255,0.97)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+              borderRadius: 20, padding: "28px 24px 20px", maxWidth: 320, width: "90%",
+              boxShadow: "0 12px 40px rgba(0,0,0,0.18)", textAlign: "center",
+              animation: "popoverIn 0.2s ease-out",
+            }} onClick={e => e.stopPropagation()}>
+              <div style={{ fontSize: 32, marginBottom: 10 }}>📲</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#1B1C39", marginBottom: 6 }}>¿Avisar al cliente?</div>
+              <div style={{ fontSize: 13, color: "#666", marginBottom: 20, lineHeight: 1.4 }}>
+                Se abrirá WhatsApp para enviar un mensaje a <strong>{whatsappPrompt.nombre}</strong>
+              </div>
+              <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+                <button onClick={() => setWhatsappPrompt(null)}
+                  style={{ padding: "10px 22px", borderRadius: 12, border: "1px solid #ccc", background: "transparent", color: "#666", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+                  No
+                </button>
+                <button onClick={() => {
+                  const tel = whatsappPrompt.tel.replace(/\D/g, "");
+                  const num = tel.startsWith("34") ? tel : `34${tel}`;
+                  const msg = encodeURIComponent("¡Hola! Tu pedido de Vynia ya está listo para que pases a recogerlo.");
+                  window.open(`https://wa.me/${num}?text=${msg}`, "_blank");
+                  setWhatsappPrompt(null);
+                }}
+                  style={{ padding: "10px 22px", borderRadius: 12, border: "none", background: "#25D366", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                  Sí, avisar
+                </button>
               </div>
             </div>
           </div>

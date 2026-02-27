@@ -13,12 +13,12 @@
 Vynia-MNGMNT/
 ├── api/                    # Vercel Serverless Functions
 │   ├── pedidos.js          # GET (listar con filtro) + POST (crear pedido)
-│   ├── pedidos/[id].js     # PATCH (toggle recogido, no acude, etc.)
+│   ├── pedidos/[id].js     # PATCH (cambiar estado, propiedades)
 │   ├── clientes.js         # POST (buscar o crear cliente)
 │   ├── registros.js        # POST (crear linea de pedido)
 │   └── produccion.js       # GET (produccion diaria agregada con clientes)
 ├── src/
-│   ├── App.jsx             # Componente principal (toda la UI, ~1400 lineas)
+│   ├── App.jsx             # Componente principal (toda la UI, ~2700 lineas)
 │   └── api.js              # Cliente API frontend (wrapper fetch)
 ├── main.jsx                # Entry point React
 ├── index.html
@@ -46,10 +46,11 @@ Integracion: **Frontend Vynia** (debe tener acceso a cada BD individualmente).
 - `"Pedido"` — title (ej: "Pedido Maria Garcia")
 - `"Fecha entrega"` — date, puede incluir hora (ej: `2026-02-26T10:30:00`)
 - `"Fecha Creacion"` — date de creacion del pedido (OJO: con tilde en "Creacion")
-- `"Recogido"` — checkbox
-- `"No acude"` — checkbox (nombre exacto con espacio)
+- `"Estado"` — **status (source of truth)** — valores: "Sin empezar" (to_do), "En preparacion" (in_progress), "Listo para recoger" (in_progress), "Recogido" (complete), "No acude" (complete), "Incidencia" (complete). Leer via `p["Estado"]?.status?.name`. Escribir via `{ "Estado": { status: { name: "Recogido" } } }`
+- `"Recogido"` — checkbox (sync automatico via dual-write al cambiar Estado)
+- `"No acude"` — checkbox (sync automatico via dual-write al cambiar Estado)
 - `"Pagado al reservar"` — checkbox (nombre exacto)
-- `"Incidencia"` — checkbox
+- `"Incidencia"` — checkbox (sync automatico via dual-write al cambiar Estado)
 - `"Notas"` — rich_text
 - `"Clientes"` — relation a BD Clientes (array de ids)
 - `"N Pedido"` — unique_id (acceder via `.unique_id.number`)
@@ -74,8 +75,8 @@ Integracion: **Frontend Vynia** (debe tener acceso a cada BD individualmente).
 
 ### GET /api/pedidos
 - Query params: `filter=todos|pendientes|recogidos`
-- Devuelve array de pedidos con: id, titulo, fecha, recogido, noAcude, pagado, incidencia, notas, numPedido, **cliente**, **telefono**, clienteId
-- Resuelve nombres de clientes via `pages.retrieve` en la relacion `Clientes` (igual que produccion.js)
+- Devuelve array de pedidos con: id, titulo, fecha, **estado**, recogido, noAcude, pagado, incidencia, notas, numPedido, **cliente**, **telefono**, clienteId
+- Resuelve nombres de clientes via rollup `"AUX Nombre Cliente"` en Pedidos
 - Resuelve telefono via rollup `"Telefono"` en Pedidos
 - Paginacion automatica via cursor
 
@@ -85,7 +86,7 @@ Integracion: **Frontend Vynia** (debe tener acceso a cada BD individualmente).
 
 ### PATCH /api/pedidos/:id
 - Body: `{ properties: { ... } }` — propiedades a actualizar
-- Usado para toggle recogido, no acude, etc.
+- Usado principalmente para cambiar Estado (dual-write: Estado + checkboxes sync)
 
 ### POST /api/clientes
 - Body: `{ nombre, telefono? }`
@@ -112,6 +113,7 @@ Integracion: **Frontend Vynia** (debe tener acceso a cada BD individualmente).
         "telefono": "612345678",
         "unidades": 3,
         "fecha": "2026-02-26T10:30:00",
+        "estado": "En preparación",
         "recogido": false,
         "noAcude": false,
         "pagado": true,
@@ -126,8 +128,8 @@ Integracion: **Frontend Vynia** (debe tener acceso a cada BD individualmente).
     ]
   }
   ```
-- Filtra pedidos por fecha (no recogidos, no no-acude)
-- Resuelve nombres de clientes via pages.retrieve en la relacion Clientes
+- Filtra pedidos por fecha (excluye "No acude")
+- Resuelve nombres de clientes via rollup `"AUX Nombre Cliente"` en Pedidos
 - Lee nombre de producto de formula `"AUX Producto Texto"`, no del titulo
 - Incluye lista completa de productos de cada pedido en `pedido.productos`
 
@@ -136,19 +138,59 @@ Integracion: **Frontend Vynia** (debe tener acceso a cada BD individualmente).
 Exporta objeto `notion` con metodos:
 - `loadAllPedidos()` — GET /api/pedidos?filter=todos
 - `loadPedidos()` — GET /api/pedidos?filter=pendientes
-- `toggleRecogido(pageId, currentValue)` — PATCH toggle
-- `toggleNoAcude(pageId, currentValue)` — PATCH toggle
+- `loadPedidosByDate(fecha)` — GET /api/pedidos?fecha=...
+- `loadPedidosByCliente(clienteId)` — GET /api/pedidos?clienteId=...
+- `cambiarEstado(pageId, nuevoEstado)` — PATCH dual-write: Estado status + checkboxes sync
 - `updatePage(pageId, properties)` — PATCH generico
+- `archivarPedido(pageId)` — PATCH archived: true
+- `searchClientes(q)` — GET /api/clientes?q=...
 - `findOrCreateCliente(nombre, telefono)` — POST /api/clientes
-- `crearPedido(clienteNombre, clientePageId, fecha, hora, pagado, notas, lineas)` — POST pedido + registros
+- `crearPedido(clienteNombre, clientePageId, fecha, hora, pagado, notas, lineas)` — POST pedido + registros (Estado = "Sin empezar")
 - `crearRegistro(pedidoPageId, productoNombre, cantidad)` — POST /api/registros
+- `loadRegistros(pedidoId)` — GET /api/registros?pedidoId=...
+- `deleteRegistros(registroIds)` — DELETE /api/registros
+- `findOrphanRegistros()` — GET /api/registros?orphans=true
 - `loadProduccion(fecha)` — GET /api/produccion?fecha=...
+- `loadProductos()` — GET /api/productos
 
 ## Tabs de la app
 
-1. **Pedidos** — Lista de pedidos con filtros estadisticos (pendientes/hoy/recogidos/todos), pills de filtro, toggle recogido/no acude, enlace telefono
-2. **Nuevo** — Formulario para crear pedido: cliente (autocompletado) + telefono + fecha (presets hoy/manana/pasado + datepicker + hora) + productos del catalogo (busqueda + cantidades) + pagado toggle + notas
-3. **Produccion** — Vista agregada de productos por dia. Selector de fecha (presets + datepicker). Lista de productos con badge de cantidad total. Accordion: click en producto muestra pedidos con nombre de cliente. Click en pedido abre modal con detalle completo (cliente, telefono, fecha, productos, badges pagado/recogido/incidencia/no-acude, notas)
+1. **Pedidos** — Lista de pedidos con filtros estadisticos (pendientes/hoy/recogidos/todos), pills de filtro, badge de estado con colores, boton pipeline (1 tap avanza estado), estado picker popover, enlace telefono, busqueda de clientes con ficha
+2. **Nuevo** — Formulario para crear pedido: cliente (autocompletado) + telefono + fecha (presets hoy/manana/pasado + datepicker + hora) + productos del catalogo (busqueda + cantidades con NumberFlow animado) + pagado toggle + notas. Crea con Estado = "Sin empezar"
+3. **Produccion** — Vista agregada de productos por dia. Selector de fecha (presets + datepicker). Lista de productos con badge de cantidad total. Accordion: click en producto muestra pedidos con nombre de cliente y badge de estado. Click en pedido abre modal con detalle completo
+
+## Sistema de Estado
+
+La propiedad `"Estado"` (tipo status de Notion) es la **source of truth** del estado de cada pedido. Los checkboxes (Recogido, No acude, Incidencia) se mantienen sincronizados via dual-write para que las vistas de Notion sigan funcionando.
+
+### Estados y pipeline
+
+| Estado | Grupo | Color | Pipeline 1-tap |
+|--------|-------|-------|----------------|
+| Sin empezar | to_do | gris #8B8B8B | → En preparacion |
+| En preparacion | in_progress | azul #1565C0 | → Listo para recoger |
+| Listo para recoger | in_progress | naranja #E65100 | → Recogido |
+| Recogido | complete | verde #2E7D32 | (fin) |
+| No acude | complete | rojo #C62828 | (fin) |
+| Incidencia | complete | marron #795548 | (fin) |
+
+### Dual-write (`cambiarEstado`)
+Al cambiar estado desde la app, se escribe en una sola PATCH:
+- `Estado: { status: { name: nuevoEstado } }`
+- `Recogido: { checkbox: nuevoEstado === "Recogido" }`
+- `No acude: { checkbox: nuevoEstado === "No acude" }`
+- `Incidencia: { checkbox: nuevoEstado === "Incidencia" }`
+
+### Legacy fallback (`effectiveEstado`)
+Para pedidos que no tienen la propiedad Estado asignada, se deriva el estado desde los checkboxes: recogido → "Recogido", noAcude → "No acude", incidencia → "Incidencia", ninguno → "Sin empezar".
+
+### Constantes en App.jsx
+- `ESTADOS` — mapa de config (group, color, bg, label, icon) por cada estado
+- `ESTADO_NEXT` — siguiente estado en el pipeline lineal (para boton 1-tap)
+- `ESTADO_TRANSITIONS` — transiciones validas desde cada estado (para picker)
+
+### WhatsApp notification
+Al marcar un pedido como "Listo para recoger", si el pedido tiene telefono, se muestra un popup preguntando si se quiere avisar al cliente. Si se acepta, se abre `wa.me/{telefono}?text={mensaje}` con el texto: "¡Hola! Tu pedido de Vynia ya esta listo para que pases a recogerlo."
 
 ## UI / UX
 
@@ -187,6 +229,8 @@ npx vite            # solo frontend (modo DEMO funciona sin API)
 - El campo `"Nombre"` (title) en Registros contiene solo `" "` — usar `"AUX Producto Texto"` (formula) para el nombre real del producto
 - `"N Pedido"` es tipo `unique_id`, acceder via `.unique_id.number`
 - El telefono del cliente viene de un rollup en Pedidos: `p["Telefono"]?.rollup?.array[0]?.phone_number`
-- Para obtener nombre de cliente: resolver relacion `"Clientes"` → `notion.pages.retrieve` → buscar propiedad tipo `title`. Esto se hace tanto en `pedidos.js` como en `produccion.js`
-- Toda la UI esta en un solo componente `App.jsx` (~1470 lineas) — no hay componentes separados
-- El catalogo de productos esta hardcodeado en `CATALOGO[]` en App.jsx (no se carga de la API)
+- Nombre de cliente viene de rollup `"AUX Nombre Cliente"` en Pedidos (no requiere llamadas extra a la API)
+- Toda la UI esta en un solo componente `App.jsx` (~2700 lineas) — no hay componentes separados
+- El catalogo de productos esta hardcodeado en `CATALOGO_FALLBACK[]` en App.jsx, con carga dinamica via `/api/productos`
+- `@number-flow/react` se usa para animaciones de cantidad en steppers del carrito
+- **Estado es la source of truth** — NO usar checkboxes para determinar estado. Usar `effectiveEstado()` que resuelve Estado o fallback desde checkboxes para legacy
