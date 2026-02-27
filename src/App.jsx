@@ -2499,6 +2499,39 @@ export default function VyniaApp() {
           from { opacity: 0; transform: translate(-50%, -100%) scale(0.9); }
           to { opacity: 1; transform: translate(-50%, -100%) scale(1); }
         }
+        @keyframes shine-pulse {
+          0% { background-position: 0% 0%; }
+          50% { background-position: 100% 100%; }
+          to { background-position: 0% 0%; }
+        }
+        /* Shine border effect on order cards */
+        .order-card {
+          position: relative;
+        }
+        .order-card::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          padding: 1.5px;
+          background-image: radial-gradient(transparent, transparent, #4F6867, #E1F2FC, #A2C2D0, transparent, transparent);
+          background-size: 300% 300%;
+          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor;
+          mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          mask-composite: exclude;
+          animation: shine-pulse 14s infinite linear;
+          will-change: background-position;
+          pointer-events: none;
+          z-index: 0;
+        }
+        .order-card > div {
+          position: relative;
+          z-index: 1;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .order-card::before { animation: none; }
+        }
         /* CSS tooltips: instant on hover (desktop), long-press on mobile */
         @media (hover: hover) {
           [data-tip] {
@@ -2546,6 +2579,7 @@ export default function VyniaApp() {
           #filter-pills { display: none !important; }
           .card-actions { display: none !important; }
           .order-card { break-inside: avoid; border-color: #ccc !important; }
+          .order-card::before { display: none !important; }
           * { box-shadow: none !important; animation: none !important; }
           a[href^="tel:"] { color: #1B1C39 !important; text-decoration: none !important; }
         }
