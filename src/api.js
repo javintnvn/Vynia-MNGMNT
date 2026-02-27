@@ -66,23 +66,19 @@ export const notion = {
     return apiCall(`/pedidos?clienteId=${clienteId}&_t=${Date.now()}`);
   },
 
-  async toggleRecogido(pageId, currentValue) {
+  async cambiarEstado(pageId, nuevoEstado) {
+    // Dual-write: update Estado + sync corresponding checkboxes
+    const checkboxSync = {
+      Recogido: { checkbox: nuevoEstado === "Recogido" },
+      "No acude": { checkbox: nuevoEstado === "No acude" },
+      Incidencia: { checkbox: nuevoEstado === "Incidencia" },
+    };
     return apiCall(`/pedidos/${pageId}`, {
       method: "PATCH",
       body: JSON.stringify({
         properties: {
-          Recogido: { checkbox: !currentValue },
-        },
-      }),
-    });
-  },
-
-  async toggleNoAcude(pageId, currentValue) {
-    return apiCall(`/pedidos/${pageId}`, {
-      method: "PATCH",
-      body: JSON.stringify({
-        properties: {
-          "No acude": { checkbox: !currentValue },
+          Estado: { status: { name: nuevoEstado } },
+          ...checkboxSync,
         },
       }),
     });
@@ -132,6 +128,9 @@ export const notion = {
       },
       "Pagado al reservar": {
         checkbox: pagado,
+      },
+      Estado: {
+        status: { name: "Sin empezar" },
       },
     };
 

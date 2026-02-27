@@ -71,6 +71,7 @@ export default async function handler(req, res) {
         noAcude: p["No acude"]?.checkbox || false,
         pagado: p["Pagado al reservar"]?.checkbox || false,
         incidencia: p["Incidencia"]?.checkbox || false,
+        estado: p["Estado"]?.status?.name || null,
         notas: extractRichText(p["Notas"]),
         numPedido: p["Nº Pedido"]?.unique_id?.number || 0,
         clienteId: clientId,

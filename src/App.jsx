@@ -86,6 +86,36 @@ const CATALOGO_FALLBACK = [
   { nombre: "Pan de Torrijas", precio: 7.00, cat: "Panadería" },
 ].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 
+// ─── ESTADO CONFIG ───
+const ESTADOS = {
+  "Sin empezar":        { group: "to_do",      color: "#8B8B8B", bg: "#F0F0F0", label: "Sin empezar", icon: "○" },
+  "En preparación":     { group: "in_progress", color: "#1565C0", bg: "#E3F2FD", label: "Preparando",  icon: "◐" },
+  "Listo para recoger": { group: "in_progress", color: "#E65100", bg: "#FFF3E0", label: "Listo",       icon: "●" },
+  "Recogido":           { group: "complete",    color: "#2E7D32", bg: "#E8F5E9", label: "Recogido",    icon: "✓" },
+  "No acude":           { group: "complete",    color: "#C62828", bg: "#FFEBEE", label: "No acude",    icon: "✗" },
+  "Incidencia":         { group: "complete",    color: "#795548", bg: "#FDE8E5", label: "Incidencia",  icon: "!" },
+};
+const ESTADO_NEXT = {
+  "Sin empezar": "En preparación",
+  "En preparación": "Listo para recoger",
+  "Listo para recoger": "Recogido",
+};
+const ESTADO_TRANSITIONS = {
+  "Sin empezar":        ["En preparación", "Listo para recoger", "Recogido", "No acude", "Incidencia"],
+  "En preparación":     ["Listo para recoger", "Recogido", "No acude", "Incidencia"],
+  "Listo para recoger": ["Recogido", "No acude", "Incidencia"],
+  "Recogido":           ["Listo para recoger", "Sin empezar"],
+  "No acude":           ["Sin empezar"],
+  "Incidencia":         ["Sin empezar"],
+};
+function effectiveEstado(raw) {
+  if (raw.estado && ESTADOS[raw.estado]) return raw.estado;
+  if (raw.recogido) return "Recogido";
+  if (raw.noAcude) return "No acude";
+  if (raw.incidencia) return "Incidencia";
+  return "Sin empezar";
+}
+
 // Pre-computed price lookup (rebuilt when catalog loads from Notion)
 let PRICE_MAP = {};
 CATALOGO_FALLBACK.forEach(c => { PRICE_MAP[c.nombre.toLowerCase().trim()] = c.precio; });
@@ -355,8 +385,8 @@ export default function VyniaApp() {
       const data = await notion.loadPedidosByCliente(cliente.id);
       const mapped = (Array.isArray(data) ? data : []).map(p => ({
         id: p.id, nombre: p.titulo || "", fecha: p.fecha || "",
-        recogido: !!p.recogido, noAcude: !!p.noAcude, pagado: !!p.pagado,
-        incidencia: !!p.incidencia, notas: p.notas || "",
+        estado: effectiveEstado({ estado: p.estado, recogido: !!p.recogido, noAcude: !!p.noAcude, incidencia: !!p.incidencia }),
+        pagado: !!p.pagado, notas: p.notas || "",
         tel: p.telefono || "", numPedido: p.numPedido || 0,
         hora: p.fecha?.includes("T") ? p.fecha.split("T")[1]?.substring(0, 5) : "",
         cliente: p.cliente || cliente.nombre, clienteId: p.clienteId || cliente.id,
@@ -386,11 +416,11 @@ export default function VyniaApp() {
     const f = fechaParam !== undefined ? fechaParam : filtroFecha;
     if (apiMode === "demo") {
       const allDemo = [
-        { id: "demo-1", nombre: "Pedido María García", cliente: "María García", tel: "600123456", fecha: fmt.todayISO(), hora: "10:30", productos: "2x Cookie pistacho, 1x Brownie", importe: 8.60, recogido: false, pagado: true, notas: "", noAcude: false, incidencia: false },
-        { id: "demo-2", nombre: "Pedido Juan López", cliente: "Juan López", tel: "612345678", fecha: fmt.todayISO(), hora: "12:00", productos: "1x Hogaza Miel, 3x Viñacaos", importe: 18.50, recogido: false, pagado: false, notas: "Sin nueces", noAcude: false, incidencia: false },
-        { id: "demo-3", nombre: "Pedido Ana Ruiz", cliente: "Ana Ruiz", tel: "654321000", fecha: fmt.tomorrowISO(), hora: "", productos: "1x Tarta de queso, 2x Barra de pan", importe: 32.00, recogido: false, pagado: true, notas: "Recoger por la tarde", noAcude: false, incidencia: false },
-        { id: "demo-4", nombre: "Pedido Carlos", cliente: "Carlos Martín", tel: "677888999", fecha: fmt.todayISO(), hora: "09:00", productos: "4x Magdalenas, 2x Bollitos", importe: 9.60, recogido: true, pagado: true, notas: "", noAcude: false, incidencia: false },
-        { id: "demo-5", nombre: "Pedido Laura", cliente: "Laura Sánchez", tel: "611222333", fecha: fmt.dayAfterISO(), hora: "11:00", productos: "1x Bizcocho naranja, 1x Granola", importe: 8.80, recogido: false, pagado: false, notas: "Llamar antes", noAcude: false, incidencia: false },
+        { id: "demo-1", nombre: "Pedido María García", cliente: "María García", tel: "600123456", fecha: fmt.todayISO(), hora: "10:30", productos: "2x Cookie pistacho, 1x Brownie", importe: 8.60, estado: "En preparación", pagado: true, notas: "" },
+        { id: "demo-2", nombre: "Pedido Juan López", cliente: "Juan López", tel: "612345678", fecha: fmt.todayISO(), hora: "12:00", productos: "1x Hogaza Miel, 3x Viñacaos", importe: 18.50, estado: "Sin empezar", pagado: false, notas: "Sin nueces" },
+        { id: "demo-3", nombre: "Pedido Ana Ruiz", cliente: "Ana Ruiz", tel: "654321000", fecha: fmt.tomorrowISO(), hora: "", productos: "1x Tarta de queso, 2x Barra de pan", importe: 32.00, estado: "Listo para recoger", pagado: true, notas: "Recoger por la tarde" },
+        { id: "demo-4", nombre: "Pedido Carlos", cliente: "Carlos Martín", tel: "677888999", fecha: fmt.todayISO(), hora: "09:00", productos: "4x Magdalenas, 2x Bollitos", importe: 9.60, estado: "Recogido", pagado: true, notas: "" },
+        { id: "demo-5", nombre: "Pedido Laura", cliente: "Laura Sánchez", tel: "611222333", fecha: fmt.dayAfterISO(), hora: "11:00", productos: "1x Bizcocho naranja, 1x Granola", importe: 8.80, estado: "Incidencia", pagado: false, notas: "Llamar antes" },
       ];
       setPedidos(f ? allDemo.filter(p => (p.fecha || "").startsWith(f)) : allDemo);
       return;
@@ -400,23 +430,24 @@ export default function VyniaApp() {
     try {
       const pedidosData = await notion.loadPedidosByDate(f);
 
-      const mapped = (Array.isArray(pedidosData) ? pedidosData : []).map(p => ({
-        id: p.id,
-        nombre: p.titulo || "",
-        fecha: p.fecha || "",
-        recogido: !!p.recogido,
-        noAcude: !!p.noAcude,
-        pagado: !!p.pagado,
-        incidencia: !!p.incidencia,
-        notas: p.notas || "",
-        importe: p.importe || 0,
-        productos: p.productos || "",
-        tel: p.telefono || "",
-        numPedido: p.numPedido || 0,
-        hora: p.fecha?.includes("T") ? p.fecha.split("T")[1]?.substring(0, 5) : "",
-        cliente: p.cliente || (p.titulo || "").replace(/^Pedido\s+/i, ""),
-        clienteId: p.clienteId || null,
-      }));
+      const mapped = (Array.isArray(pedidosData) ? pedidosData : []).map(p => {
+        const raw = { estado: p.estado, recogido: !!p.recogido, noAcude: !!p.noAcude, incidencia: !!p.incidencia };
+        return {
+          id: p.id,
+          nombre: p.titulo || "",
+          fecha: p.fecha || "",
+          estado: effectiveEstado(raw),
+          pagado: !!p.pagado,
+          notas: p.notas || "",
+          importe: p.importe || 0,
+          productos: p.productos || "",
+          tel: p.telefono || "",
+          numPedido: p.numPedido || 0,
+          hora: p.fecha?.includes("T") ? p.fecha.split("T")[1]?.substring(0, 5) : "",
+          cliente: p.cliente || (p.titulo || "").replace(/^Pedido\s+/i, ""),
+          clienteId: p.clienteId || null,
+        };
+      });
 
       setPedidos(mapped);
       notify("ok", `${mapped.length} pedido${mapped.length !== 1 ? "s" : ""} cargado${mapped.length !== 1 ? "s" : ""}`);
@@ -498,12 +529,12 @@ export default function VyniaApp() {
     if (apiMode === "demo") {
       // Parse demo pedidos to generate produccion data
       const demoPedidos = [
-        { id: "demo-1", nombre: "Pedido María García", cliente: "María García", tel: "600123456", fecha: fmt.todayISO(), hora: "10:30", productos: "2x Cookie pistacho, 1x Brownie", importe: 8.60, recogido: false, pagado: true, notas: "", noAcude: false, incidencia: false },
-        { id: "demo-2", nombre: "Pedido Juan López", cliente: "Juan López", tel: "612345678", fecha: fmt.todayISO(), hora: "12:00", productos: "1x Hogaza Miel, 3x Viñacaos", importe: 18.50, recogido: false, pagado: false, notas: "Sin nueces", noAcude: false, incidencia: false },
-        { id: "demo-4", nombre: "Pedido Carlos", cliente: "Carlos Martín", tel: "677888999", fecha: fmt.todayISO(), hora: "09:00", productos: "4x Magdalenas, 2x Bollitos", importe: 9.60, recogido: false, pagado: true, notas: "", noAcude: false, incidencia: false },
-        { id: "demo-5", nombre: "Pedido Ana Ruiz", cliente: "Ana Ruiz", tel: "655111222", fecha: fmt.todayISO(), hora: "09:30", productos: "3x Cookie pistacho, 2x Magdalenas", importe: 11.00, recogido: true, pagado: true, notas: "", noAcude: false, incidencia: false },
+        { id: "demo-1", nombre: "Pedido María García", cliente: "María García", tel: "600123456", fecha: fmt.todayISO(), hora: "10:30", productos: "2x Cookie pistacho, 1x Brownie", importe: 8.60, estado: "En preparación", pagado: true, notas: "" },
+        { id: "demo-2", nombre: "Pedido Juan López", cliente: "Juan López", tel: "612345678", fecha: fmt.todayISO(), hora: "12:00", productos: "1x Hogaza Miel, 3x Viñacaos", importe: 18.50, estado: "Sin empezar", pagado: false, notas: "Sin nueces" },
+        { id: "demo-4", nombre: "Pedido Carlos", cliente: "Carlos Martín", tel: "677888999", fecha: fmt.todayISO(), hora: "09:00", productos: "4x Magdalenas, 2x Bollitos", importe: 9.60, estado: "Listo para recoger", pagado: true, notas: "" },
+        { id: "demo-5", nombre: "Pedido Ana Ruiz", cliente: "Ana Ruiz", tel: "655111222", fecha: fmt.todayISO(), hora: "09:30", productos: "3x Cookie pistacho, 2x Magdalenas", importe: 11.00, estado: "Recogido", pagado: true, notas: "" },
       ];
-      const filtered = demoPedidos.filter(p => (p.fecha || "").startsWith(f) && !p.noAcude);
+      const filtered = demoPedidos.filter(p => (p.fecha || "").startsWith(f) && p.estado !== "No acude");
       const agg = {};
       filtered.forEach(p => {
         (p.productos || "").split(",").forEach(item => {
@@ -513,7 +544,7 @@ export default function VyniaApp() {
           const name = m[2].trim();
           if (!agg[name]) agg[name] = { nombre: name, totalUnidades: 0, pedidos: [] };
           agg[name].totalUnidades += qty;
-          agg[name].pedidos.push({ pedidoId: p.id, pedidoTitulo: p.nombre, unidades: qty, fecha: p.fecha, recogido: p.recogido, pagado: p.pagado, notas: p.notas, cliente: p.cliente, tel: p.tel, hora: p.hora });
+          agg[name].pedidos.push({ pedidoId: p.id, pedidoTitulo: p.nombre, unidades: qty, fecha: p.fecha, estado: p.estado, pagado: p.pagado, notas: p.notas, cliente: p.cliente, tel: p.tel, hora: p.hora });
         });
       });
       setProduccionData(Object.values(agg).sort((a, b) => a.nombre.localeCompare(b.nombre, "es")));
@@ -530,39 +561,22 @@ export default function VyniaApp() {
     }
   }, [apiMode, produccionFecha, notify]);
 
-  // ─── MARK RECOGIDO ───
-  const toggleRecogido = async (pedido) => {
-    if (apiMode === "demo") {
-      setPedidos(ps => ps.map(p => p.id === pedido.id ? { ...p, recogido: !p.recogido } : p));
-      notify("ok", pedido.recogido ? "Desmarcado" : "✓ Recogido");
-      return;
-    }
-    setLoading(true);
-    try {
-      await notion.toggleRecogido(pedido.id, pedido.recogido);
-      setPedidos(ps => ps.map(p => p.id === pedido.id ? { ...p, recogido: !p.recogido } : p));
-      invalidateProduccion(pedido.fecha); invalidateSearchCache();
-      notify("ok", pedido.recogido ? "Desmarcado" : "✓ Marcado como recogido");
-    } catch (err) {
-      notify("err", err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // ─── CAMBIAR ESTADO ───
+  const [estadoPicker, setEstadoPicker] = useState(null);
 
-  // ─── MARK NO ACUDE ───
-  const toggleNoAcude = async (pedido) => {
+  const cambiarEstado = async (pedido, nuevoEstado) => {
     if (apiMode === "demo") {
-      setPedidos(ps => ps.map(p => p.id === pedido.id ? { ...p, noAcude: !p.noAcude } : p));
-      notify("ok", "Actualizado");
+      setPedidos(ps => ps.map(p => p.id === pedido.id ? { ...p, estado: nuevoEstado } : p));
+      notify("ok", ESTADOS[nuevoEstado]?.label || nuevoEstado);
       return;
     }
     setLoading(true);
     try {
-      await notion.toggleNoAcude(pedido.id, pedido.noAcude);
-      setPedidos(ps => ps.map(p => p.id === pedido.id ? { ...p, noAcude: !p.noAcude } : p));
+      await notion.cambiarEstado(pedido.id, nuevoEstado);
+      setPedidos(ps => ps.map(p => p.id === pedido.id ? { ...p, estado: nuevoEstado } : p));
       invalidateProduccion(pedido.fecha); invalidateSearchCache();
-      notify("ok", "Actualizado");
+      notify("ok", `${ESTADOS[nuevoEstado]?.icon || ""} ${ESTADOS[nuevoEstado]?.label || nuevoEstado}`);
+      // TODO: WhatsApp notification via Make webhook when "Listo para recoger"
     } catch (err) {
       notify("err", err.message);
     } finally {
@@ -730,11 +744,9 @@ export default function VyniaApp() {
         hora,
         productos: prodsStr,
         importe: total,
-        recogido: false,
+        estado: "Sin empezar",
         pagado,
         notas,
-        noAcude: false,
-        incidencia: false,
       }, ...ps]);
       notify("ok", `✓ Pedido creado: ${cliente} — €${total.toFixed(2)}`);
       setCreateResult({ status: "ok", cliente, total, pedidoId: demoId });
@@ -842,16 +854,17 @@ export default function VyniaApp() {
     let total = 0, pendientes = 0, recogidos = 0;
     for (const p of pedidos) {
       total++;
-      if (p.recogido) recogidos++;
-      else if (!p.noAcude) pendientes++;
+      const g = ESTADOS[p.estado]?.group;
+      if (p.estado === "Recogido") recogidos++;
+      else if (g !== "complete") pendientes++;
     }
     return { statsTotal: total, statsPendientes: pendientes, statsRecogidos: recogidos };
   }, [pedidos]);
 
   // ─── FILTERED PEDIDOS (memoized) ───
   const pedidosFiltrados = useMemo(() => {
-    if (filtro === "pendientes") return pedidos.filter(p => !p.recogido && !p.noAcude);
-    if (filtro === "recogidos") return pedidos.filter(p => p.recogido);
+    if (filtro === "pendientes") return pedidos.filter(p => ESTADOS[p.estado]?.group !== "complete");
+    if (filtro === "recogidos") return pedidos.filter(p => p.estado === "Recogido");
     return pedidos;
   }, [pedidos, filtro]);
 
@@ -879,7 +892,7 @@ export default function VyniaApp() {
       return { prodView: [], totalPendiente: 0, totalRecogido: 0, activeProductCount: 0 };
     }
     const view = produccionData.map(prod => {
-      const pedsFiltrados = ocultarRecogidos ? prod.pedidos.filter(p => !p.recogido) : prod.pedidos;
+      const pedsFiltrados = ocultarRecogidos ? prod.pedidos.filter(p => p.estado !== "Recogido" && p.recogido !== true) : prod.pedidos;
       const uds = pedsFiltrados.reduce((s, p) => s + p.unidades, 0);
       return { ...prod, pedidosFiltrados: pedsFiltrados, udsFiltradas: uds, udsRecogidas: prod.totalUnidades - uds };
     }).filter(p => p.udsFiltradas > 0 || !ocultarRecogidos);
@@ -1273,9 +1286,9 @@ export default function VyniaApp() {
                       <div key={p.id} onClick={() => { setPedidoFromFicha(true); setSelectedPedido({ ...p, pedidoTitulo: p.nombre, telefono: p.tel, productos: typeof p.productos === "string" ? parseProductsStr(p.productos) : (Array.isArray(p.productos) ? p.productos : []) }); }}
                         style={{
                           background: "#FDFBF7", borderRadius: 10,
-                          border: `1px solid ${p.recogido ? "#d4cec6" : "#A2C2D0"}`,
+                          border: `1px solid ${ESTADOS[p.estado]?.group === "complete" ? (ESTADOS[p.estado]?.color + "40") : "#A2C2D0"}`,
                           padding: "10px 14px", cursor: "pointer",
-                          opacity: p.recogido ? 0.65 : 1,
+                          opacity: ESTADOS[p.estado]?.group === "complete" ? 0.65 : 1,
                           transition: "all 0.15s",
                         }}
                         onMouseEnter={e => e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)"}
@@ -1286,13 +1299,12 @@ export default function VyniaApp() {
                             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                               <span style={{
                                 fontSize: 14, fontWeight: 600, color: "#1B1C39",
-                                textDecoration: p.recogido ? "line-through" : "none",
+                                textDecoration: p.estado === "Recogido" ? "line-through" : "none",
                               }}>
                                 {p.numPedido > 0 ? `#${p.numPedido}` : "Pedido"}
                               </span>
-                              {p.recogido && <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 4, background: "#E1F2FC", color: "#4F6867", fontWeight: 700 }}>RECOGIDO</span>}
+                              {p.estado !== "Sin empezar" && <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 4, background: ESTADOS[p.estado]?.bg || "#F0F0F0", color: ESTADOS[p.estado]?.color || "#8B8B8B", fontWeight: 700, border: `0.5px solid ${ESTADOS[p.estado]?.color || "#8B8B8B"}22` }}>{ESTADOS[p.estado]?.label || p.estado}</span>}
                               {p.pagado && <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 4, background: "#E1F2FC", color: "#3D5655", fontWeight: 700 }}>PAGADO</span>}
-                              {p.noAcude && <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 4, background: "#FFCDD2", color: "#C62828", fontWeight: 700 }}>NO ACUDE</span>}
                             </div>
                             <div style={{ fontSize: 12, color: "#4F6867", marginTop: 3 }}>
                               {fmt.date(p.fecha?.split("T")[0] || "")}
@@ -1362,10 +1374,10 @@ export default function VyniaApp() {
                     <div key={p.id} className="order-card" style={{
                       background: "#fff",
                       borderRadius: 14,
-                      border: `1px solid ${p.recogido ? "#A2C2D0" : p.noAcude ? "#FFCDD2" : "#A2C2D0"}`,
+                      border: `1px solid ${ESTADOS[p.estado]?.group === "complete" ? (ESTADOS[p.estado]?.color + "40") : "#A2C2D0"}`,
                       padding: "14px 16px",
                       boxShadow: "0 1px 4px rgba(60,50,30,0.04)",
-                      opacity: p.recogido ? 0.65 : 1,
+                      opacity: ESTADOS[p.estado]?.group === "complete" ? 0.65 : 1,
                       transition: "all 0.2s",
                     }}>
                       {/* Top row: name + time + amount (clickable for detail) */}
@@ -1379,23 +1391,25 @@ export default function VyniaApp() {
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             <span style={{
                               fontSize: 15, fontWeight: 700,
-                              color: p.recogido ? "#4F6867" : "#1B1C39",
-                              textDecoration: p.recogido ? "line-through" : "none",
+                              color: ESTADOS[p.estado]?.group === "complete" ? "#4F6867" : "#1B1C39",
+                              textDecoration: p.estado === "Recogido" ? "line-through" : "none",
                               overflowWrap: "break-word", wordBreak: "break-word",
                             }}>
                               {p.cliente || p.nombre}
                             </span>
+                            {p.estado !== "Sin empezar" && (
+                              <span style={{
+                                fontSize: 9, padding: "2px 6px", borderRadius: 4,
+                                background: ESTADOS[p.estado]?.bg || "#F0F0F0",
+                                color: ESTADOS[p.estado]?.color || "#8B8B8B",
+                                fontWeight: 700, border: `0.5px solid ${ESTADOS[p.estado]?.color || "#8B8B8B"}22`,
+                              }}>{ESTADOS[p.estado]?.icon} {ESTADOS[p.estado]?.label}</span>
+                            )}
                             {p.pagado && (
                               <span style={{
                                 fontSize: 9, padding: "2px 6px", borderRadius: 4,
                                 background: "#E1F2FC", color: "#3D5655", fontWeight: 700,
                               }}>PAGADO</span>
-                            )}
-                            {p.incidencia && (
-                              <span style={{
-                                fontSize: 9, padding: "2px 6px", borderRadius: 4,
-                                background: "#FDE8E5", color: "#C62828", fontWeight: 700,
-                              }}>!</span>
                             )}
                             {tardeSet.has(p.id) && (
                               <span style={{
@@ -1450,7 +1464,7 @@ export default function VyniaApp() {
                           <span style={{
                             fontSize: 18, fontWeight: 800,
                             fontFamily: "'Roboto Condensed', sans-serif",
-                            color: p.recogido ? "#4F6867" : "#4F6867",
+                            color: "#4F6867",
                           }}>
                             {typeof p.importe === "number" && p.importe > 0 ? `${p.importe.toFixed(2)}€` : "—"}
                           </span>
@@ -1462,33 +1476,43 @@ export default function VyniaApp() {
                         display: "flex", gap: 8, marginTop: 10,
                         borderTop: "1px solid #E1F2FC", paddingTop: 10,
                       }}>
-                        <button title={p.recogido ? "Desmarcar como recogido" : "Marcar como recogido"} onClick={() => toggleRecogido(p)}
+                        {/* Primary: advance to next logical state */}
+                        {(() => {
+                          const next = ESTADO_NEXT[p.estado];
+                          if (!next) return null;
+                          const cfg = ESTADOS[next];
+                          return (
+                            <button title={`Cambiar a: ${cfg.label}`} onClick={() => cambiarEstado(p, next)}
+                              style={{
+                                flex: 1, padding: "9px 0", borderRadius: 9,
+                                border: "none", fontSize: 12, fontWeight: 700,
+                                cursor: "pointer", display: "flex",
+                                alignItems: "center", justifyContent: "center", gap: 6,
+                                background: `linear-gradient(135deg, ${cfg.color}, ${cfg.color}dd)`,
+                                color: "#fff",
+                                boxShadow: `0 2px 8px ${cfg.color}40`,
+                                transition: "all 0.2s",
+                              }}>
+                              {cfg.icon} {cfg.label}
+                            </button>
+                          );
+                        })()}
+
+                        {/* Estado picker toggle */}
+                        <button title="Cambiar estado" onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setEstadoPicker({ pedidoId: p.id, currentEstado: p.estado, x: rect.left + rect.width / 2, y: rect.bottom + 4 });
+                        }}
                           style={{
-                            flex: 1, padding: "9px 0", borderRadius: 9,
-                            border: "none", fontSize: 12, fontWeight: 700,
-                            cursor: "pointer", display: "flex",
-                            alignItems: "center", justifyContent: "center", gap: 6,
-                            background: p.recogido ? "#E1F2FC" : "linear-gradient(135deg, #4F6867, #3D5655)",
-                            color: p.recogido ? "#3D5655" : "#fff",
-                            boxShadow: p.recogido ? "none" : "0 2px 8px rgba(79,104,103,0.3)",
-                            transition: "all 0.2s",
+                            padding: "9px 14px", borderRadius: 9,
+                            border: `1px solid ${ESTADOS[p.estado]?.color || "#A2C2D0"}40`,
+                            background: ESTADOS[p.estado]?.bg || "transparent",
+                            color: ESTADOS[p.estado]?.color || "#4F6867",
+                            fontSize: 12, fontWeight: 600, cursor: "pointer",
+                            display: "flex", alignItems: "center", gap: 4,
                           }}>
-                          <I.Check s={14} /> {p.recogido ? "Desmarcar" : "Recogido"}
+                          {ESTADOS[p.estado]?.icon} ▾
                         </button>
-
-                        {!p.recogido && (
-                          <button title={p.noAcude ? "Marcar que sí acude" : "Marcar que no acude"} onClick={() => toggleNoAcude(p)}
-                            style={{
-                              padding: "9px 14px", borderRadius: 9,
-                              border: `1px solid ${p.noAcude ? "#EF9A9A" : "#A2C2D0"}`,
-                              background: p.noAcude ? "#FFEBEE" : "transparent",
-                              color: p.noAcude ? "#C62828" : "#4F6867",
-                              fontSize: 12, fontWeight: 600, cursor: "pointer",
-                            }}>
-                            {p.noAcude ? "Sí acude" : "No acude"}
-                          </button>
-                        )}
-
                       </div>
                     </div>
                     ));
@@ -2124,7 +2148,7 @@ export default function VyniaApp() {
                             Pedidos con {prod.nombre}:
                           </p>
                           {prod.pedidos.map((ped, i) => (
-                            <button title="Ver detalle del pedido" key={ped.pedidoId + "-" + i} onClick={() => setSelectedPedido({ ...ped, id: ped.pedidoId })}
+                            <button title="Ver detalle del pedido" key={ped.pedidoId + "-" + i} onClick={() => setSelectedPedido({ ...ped, id: ped.pedidoId, estado: effectiveEstado(ped) })}
                               style={{
                                 width: "100%", padding: "10px 12px",
                                 border: "none",
@@ -2132,23 +2156,25 @@ export default function VyniaApp() {
                                 background: "transparent", cursor: "pointer",
                                 display: "flex", alignItems: "center", justifyContent: "space-between",
                                 textAlign: "left", fontSize: 13,
-                                opacity: ped.recogido ? 0.5 : 1,
+                                opacity: (ped.estado === "Recogido" || ped.recogido) ? 0.5 : 1,
                               }}
                               onMouseEnter={e => e.currentTarget.style.background = "#E1F2FC"}
                               onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                             >
                               <div>
-                                <span style={{ fontWeight: 600, color: "#1B1C39", textDecoration: ped.recogido ? "line-through" : "none" }}>
+                                <span style={{ fontWeight: 600, color: "#1B1C39", textDecoration: (ped.estado === "Recogido" || ped.recogido) ? "line-through" : "none" }}>
                                   {ped.cliente || (ped.pedidoTitulo || "").replace(/^Pedido\s+/i, "") || "Sin nombre"}
                                 </span>
-                                {ped.recogido && (
+                                {ped.estado && ped.estado !== "Sin empezar" && (
                                   <span style={{
                                     fontSize: 9, padding: "1px 5px", borderRadius: 3,
-                                    background: "#d4edda", color: "#155724", fontWeight: 700,
-                                    marginLeft: 6,
-                                  }}>RECOGIDO</span>
+                                    background: ESTADOS[ped.estado]?.bg || "#F0F0F0",
+                                    color: ESTADOS[ped.estado]?.color || "#8B8B8B",
+                                    fontWeight: 700, marginLeft: 6,
+                                    border: `0.5px solid ${ESTADOS[ped.estado]?.color || "#8B8B8B"}22`,
+                                  }}>{ESTADOS[ped.estado]?.label || ped.estado}</span>
                                 )}
-                                {ped.pagado && !ped.recogido && (
+                                {ped.pagado && ped.estado !== "Recogido" && (
                                   <span style={{
                                     fontSize: 9, padding: "1px 5px", borderRadius: 3,
                                     background: "#E1F2FC", color: "#3D5655", fontWeight: 700,
@@ -2161,7 +2187,7 @@ export default function VyniaApp() {
                                   </div>
                                 )}
                               </div>
-                              <span style={{ fontWeight: 700, color: ped.recogido ? "#A2C2D0" : "#4F6867", textDecoration: ped.recogido ? "line-through" : "none" }}>
+                              <span style={{ fontWeight: 700, color: (ped.estado === "Recogido" || ped.recogido) ? "#A2C2D0" : "#4F6867", textDecoration: (ped.estado === "Recogido" || ped.recogido) ? "line-through" : "none" }}>
                                 {ped.unidades} ud{ped.unidades !== 1 ? "s" : ""}
                               </span>
                             </button>
@@ -2223,17 +2249,16 @@ export default function VyniaApp() {
                   </div>
                   {/* Status badges inline under name */}
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 4 }}>
+                    {selectedPedido.estado && (
+                      <span style={{
+                        fontSize: 10, padding: "2px 8px", borderRadius: 10, fontWeight: 700,
+                        background: ESTADOS[selectedPedido.estado]?.bg || "#F0F0F0",
+                        color: ESTADOS[selectedPedido.estado]?.color || "#8B8B8B",
+                        border: `0.5px solid ${ESTADOS[selectedPedido.estado]?.color || "#8B8B8B"}22`,
+                      }}>{ESTADOS[selectedPedido.estado]?.icon} {ESTADOS[selectedPedido.estado]?.label || selectedPedido.estado}</span>
+                    )}
                     {selectedPedido.pagado && (
                       <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#E1F2FC", color: "#3D5655", fontWeight: 700, border: "0.5px solid rgba(79,104,103,0.15)" }}>PAGADO</span>
-                    )}
-                    {selectedPedido.recogido && (
-                      <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#E1F2FC", color: "#3D5655", fontWeight: 700, border: "0.5px solid rgba(79,104,103,0.15)" }}>RECOGIDO</span>
-                    )}
-                    {selectedPedido.incidencia && (
-                      <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#FDE8E5", color: "#C62828", fontWeight: 700, border: "0.5px solid rgba(198,40,40,0.15)" }}>INCIDENCIA</span>
-                    )}
-                    {selectedPedido.noAcude && (
-                      <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#FDE8E5", color: "#C62828", fontWeight: 700, border: "0.5px solid rgba(198,40,40,0.15)" }}>NO ACUDE</span>
                     )}
                   </div>
                 </div>
@@ -2435,6 +2460,34 @@ export default function VyniaApp() {
                   </div>
                 )}
 
+                {/* ═══ ESTADO CHANGE ═══ */}
+                {(ESTADO_TRANSITIONS[selectedPedido.estado] || []).length > 0 && (
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                    {(ESTADO_TRANSITIONS[selectedPedido.estado] || []).map(est => {
+                      const cfg = ESTADOS[est];
+                      return (
+                        <button key={est} onClick={() => {
+                          cambiarEstado(selectedPedido, est);
+                          setSelectedPedido(prev => prev ? { ...prev, estado: est } : prev);
+                        }}
+                        style={{
+                          padding: "8px 14px", borderRadius: 8,
+                          border: `1px solid ${cfg?.color || "#A2C2D0"}30`,
+                          background: cfg?.bg || "transparent",
+                          color: cfg?.color || "#4F6867",
+                          fontSize: 12, fontWeight: 600, cursor: "pointer",
+                          display: "flex", alignItems: "center", gap: 4,
+                          transition: "all 0.15s",
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.boxShadow = `0 2px 8px ${cfg?.color || "#4F6867"}25`; }}
+                        onMouseLeave={e => { e.currentTarget.style.boxShadow = "none"; }}>
+                          {cfg?.icon} {cfg?.label || est}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
                 {/* ═══ ACTIONS SECTION ═══ */}
                 <div style={{ borderTop: "1px solid rgba(162,194,208,0.15)", paddingTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
                   <a href={`https://www.notion.so/${selectedPedido.id.replace(/-/g, "")}`}
@@ -2493,6 +2546,60 @@ export default function VyniaApp() {
                     </button>
                   )}
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════
+            ESTADO PICKER POPOVER
+        ══════════════════════════════════════════ */}
+        {estadoPicker && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 300 }} onClick={() => setEstadoPicker(null)}>
+            <div style={{
+              position: "absolute",
+              left: Math.min(Math.max(estadoPicker.x - 100, 10), window.innerWidth - 220),
+              top: Math.min(estadoPicker.y, window.innerHeight - 250),
+              background: "rgba(239,233,228,0.92)",
+              backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+              borderRadius: 16, padding: 4,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+              minWidth: 200,
+              animation: "popoverIn 0.18s ease-out",
+            }} onClick={e => e.stopPropagation()}>
+              <div style={{
+                background: "rgba(255,255,255,0.95)",
+                borderRadius: 14, overflow: "hidden",
+                border: "1px solid rgba(162,194,208,0.25)",
+              }}>
+                {(ESTADO_TRANSITIONS[estadoPicker.currentEstado] || []).map((est, i, arr) => {
+                  const cfg = ESTADOS[est];
+                  return (
+                    <button key={est} onClick={() => {
+                      const pedido = pedidos.find(p => p.id === estadoPicker.pedidoId) || { id: estadoPicker.pedidoId, fecha: "" };
+                      cambiarEstado(pedido, est);
+                      setEstadoPicker(null);
+                    }}
+                    style={{
+                      width: "100%", padding: "12px 14px",
+                      border: "none",
+                      borderBottom: i < arr.length - 1 ? "1px solid rgba(162,194,208,0.15)" : "none",
+                      background: "transparent", cursor: "pointer",
+                      textAlign: "left", fontSize: 13, fontWeight: 600,
+                      color: cfg?.color || "#4F6867",
+                      display: "flex", alignItems: "center", gap: 8,
+                      transition: "background 0.15s",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = cfg?.bg || "#F0F0F0"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                      <span style={{
+                        width: 8, height: 8, borderRadius: "50%",
+                        background: cfg?.color || "#8B8B8B", display: "inline-block", flexShrink: 0,
+                      }} />
+                      {cfg?.label || est}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
