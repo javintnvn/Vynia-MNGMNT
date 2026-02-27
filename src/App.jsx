@@ -100,6 +100,12 @@ const ESTADO_NEXT = {
   "En preparación": "Listo para recoger",
   "Listo para recoger": "Recogido",
 };
+// Action verbs for the primary pipeline button (what the user DOES, not the target state)
+const ESTADO_ACTION = {
+  "En preparación": "Preparar",
+  "Listo para recoger": "Listo para recoger",
+  "Recogido": "Marcar recogido",
+};
 const ESTADO_TRANSITIONS = {
   "Sin empezar":        ["En preparación", "Listo para recoger", "Recogido", "No acude", "Incidencia"],
   "En preparación":     ["Listo para recoger", "Recogido", "No acude", "Incidencia"],
@@ -1487,12 +1493,13 @@ export default function VyniaApp() {
                           const next = ESTADO_NEXT[p.estado];
                           if (!next) return null;
                           const cfg = ESTADOS[next];
+                          const action = ESTADO_ACTION[next] || cfg.label;
                           return (
-                            <button className="estado-btn" title={`Cambiar a: ${cfg.label}`} onClick={() => cambiarEstado(p, next)}
+                            <button className="estado-btn" title={action} onClick={() => cambiarEstado(p, next)}
                               style={{
                                 flex: 1, padding: "10px 0", borderRadius: 12,
                                 border: `1.5px solid ${cfg.color}50`,
-                                fontSize: 12, fontWeight: 700,
+                                fontSize: 12, fontWeight: 700, letterSpacing: "0.01em",
                                 cursor: "pointer", display: "flex",
                                 alignItems: "center", justifyContent: "center", gap: 6,
                                 background: `linear-gradient(135deg, ${cfg.color}ee, ${cfg.color}cc)`,
@@ -1502,7 +1509,7 @@ export default function VyniaApp() {
                               <div className="btn-shimmer" />
                               <div className="btn-glow" style={{ background: `radial-gradient(circle at 50% 50%, ${cfg.color}30, transparent 70%)` }} />
                               <span style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 6 }}>
-                                <span style={{ fontSize: 14 }}>{cfg.icon}</span> {cfg.label}
+                                {action}
                                 <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" style={{ width: 13, height: 13, opacity: 0.7 }}>
                                   <path d="M9 5l7 7-7 7" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
                                 </svg>
@@ -1511,22 +1518,24 @@ export default function VyniaApp() {
                           );
                         })()}
 
-                        {/* Estado picker toggle */}
-                        <button className="estado-btn" title="Cambiar estado" onClick={(e) => {
+                        {/* Estado picker: shows current state + opens full picker */}
+                        <button className="estado-btn" title="Más opciones de estado" onClick={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();
                           setEstadoPicker({ pedidoId: p.id, currentEstado: p.estado, x: rect.left + rect.width / 2, y: rect.bottom + 4 });
                         }}
                           style={{
-                            padding: "10px 14px", borderRadius: 12,
+                            padding: "10px 12px", borderRadius: 12,
                             border: `1.5px solid ${ESTADOS[p.estado]?.color || "#A2C2D0"}35`,
                             background: `linear-gradient(135deg, ${ESTADOS[p.estado]?.bg || "#F0F0F0"}, ${ESTADOS[p.estado]?.bg || "#F0F0F0"}dd)`,
                             color: ESTADOS[p.estado]?.color || "#4F6867",
-                            fontSize: 12, fontWeight: 600, cursor: "pointer",
-                            display: "flex", alignItems: "center", gap: 4,
+                            fontSize: 11, fontWeight: 600, cursor: "pointer",
+                            display: "flex", alignItems: "center", gap: 5,
                             boxShadow: `0 2px 6px ${ESTADOS[p.estado]?.color || "#4F6867"}15`,
                           }}>
                           <div className="btn-shimmer" style={{ background: `linear-gradient(90deg, transparent 0%, ${ESTADOS[p.estado]?.color || "#4F6867"}15 50%, transparent 100%)` }} />
-                          <span style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 4 }}>{ESTADOS[p.estado]?.icon} ▾</span>
+                          <span style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 5 }}>
+                            ···
+                          </span>
                         </button>
                       </div>
                     </div>
@@ -2506,7 +2515,7 @@ export default function VyniaApp() {
                           <div className="btn-shimmer" style={!isPrimary ? { background: `linear-gradient(90deg, transparent 0%, ${cfg?.color || "#4F6867"}15 50%, transparent 100%)` } : undefined} />
                           {isPrimary && <div className="btn-glow" style={{ background: `radial-gradient(circle at 50% 50%, ${cfg?.color || "#4F6867"}30, transparent 70%)` }} />}
                           <span style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 5 }}>
-                            <span style={{ fontSize: isPrimary ? 15 : 13 }}>{cfg?.icon}</span> {cfg?.label || est}
+                            {isPrimary ? (ESTADO_ACTION[est] || cfg?.label || est) : (<><span style={{ fontSize: 13 }}>{cfg?.icon}</span> {cfg?.label || est}</>)}
                             {isPrimary && (
                               <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" style={{ width: 13, height: 13, opacity: 0.7 }}>
                                 <path d="M9 5l7 7-7 7" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
